@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floor Fillers — CRM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --black: #0D0D0D;
+    --offwhite: #F7F5F0;
+    --gold: #C9A84C;
+    --gold-dim: rgba(201,168,76,0.12);
+    --gold-border: rgba(201,168,76,0.28);
+    --charcoal: #1A1A1A;
+    --card: #1E1E1E;
+    --mid: #2A2A2A;
+    --muted: #6A6A6A;
+    --green: #4CAF7D;
+    --amber: #E8A020;
+    --red: #E05555;
+    --blue: #5B8FD4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--black); color: var(--offwhite); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--gold-border);
+    padding: 18px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100; background: var(--black);
+  }
+  .logo { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--gold); letter-spacing: 0.03em; }
+  .logo span { color: var(--offwhite); font-weight: 400; }
+  .header-right { display: flex; align-items: center; gap: 14px; }
+  .sync-btn {
+    background: var(--gold-dim); border: 1px solid var(--gold-border);
+    color: var(--gold); font-family: 'DM Sans', sans-serif; font-size: 0.75rem;
+    font-weight: 600; padding: 7px 14px; border-radius: 5px; cursor: pointer;
+    letter-spacing: 0.06em; text-transform: uppercase; transition: all 0.18s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .sync-btn:hover { background: rgba(201,168,76,0.22); }
+  .sync-status { font-size: 0.72rem; color: var(--muted); }
+
+  /* TABS */
+  .tabs {
+    display: flex; border-bottom: 1px solid var(--gold-border);
+    padding: 0 28px; background: var(--charcoal);
+  }
+  .tab {
+    padding: 13px 18px; font-size: 0.82rem; font-weight: 500; cursor: pointer;
+    color: var(--muted); border-bottom: 2px solid transparent;
+    transition: all 0.18s; letter-spacing: 0.02em;
+  }
+  .tab:hover { color: var(--offwhite); }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  /* MAIN */
+  .view { display: none; padding: 28px; }
+  .view.active { display: block; }
+
+  /* ─── PIPELINE VIEW ─── */
+  .pipeline-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px;
+  }
+  .pipeline-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; }
+  .lead-count { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+  /* Pipeline stages */
+  .stages-scroll { overflow-x: auto; padding-bottom: 12px; }
+  .stages { display: flex; gap: 14px; min-width: max-content; }
+  .stage-col { width: 240px; flex-shrink: 0; }
+  .stage-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-radius: 7px 7px 0 0;
+    border: 1px solid var(--gold-border); border-bottom: none;
+    background: var(--gold-dim);
+  }
+  .stage-name { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+  .stage-badge {
+    background: var(--gold); color: var(--black); font-size: 0.65rem;
+    font-weight: 700; padding: 2px 7px; border-radius: 10px;
+  }
+  .stage-cards {
+    border: 1px solid var(--gold-border); border-radius: 0 0 7px 7px;
+    min-height: 120px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+    background: rgba(255,255,255,0.015);
+  }
+  .lead-card {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 7px; padding: 12px 14px; cursor: pointer;
+    transition: all 0.18s; position: relative;
+  }
+  .lead-card:hover { border-color: var(--gold-border); background: #232323; }
+  .lead-card.selected { border-color: var(--gold); }
+  .card-name { font-size: 0.88rem; font-weight: 500; margin-bottom: 4px; }
+  .card-meta { font-size: 0.72rem; color: var(--muted); line-height: 1.5; }
+  .card-type {
+    display: inline-block; font-size: 0.63rem; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 3px; margin-top: 6px;
+  }
+  .type-wedding { background: rgba(91,143,212,0.18); color: var(--blue); }
+  .type-corporate { background: rgba(76,175,125,0.18); color: var(--green); }
+  .type-milestone { background: rgba(232,160,32,0.18); color: var(--amber); }
+
+  /* ─── CLIENT DETAIL PANEL ─── */
+  .detail-panel {
+    position: fixed; right: 0; top: 0; width: 480px; height: 100vh;
+    background: var(--charcoal); border-left: 1px solid var(--gold-border);
+    z-index: 200; overflow-y: auto; transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  }
+  .detail-panel.open { transform: translateX(0); }
+  .panel-close {
+    position: absolute; top: 16px; right: 18px; background: none; border: none;
+    color: var(--muted); font-size: 1.3rem; cursor: pointer; line-height: 1;
+  }
+  .panel-close:hover { color: var(--offwhite); }
+  .panel-top { padding: 24px 24px 0; border-bottom: 1px solid var(--gold-border); }
+  .panel-name { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 4px; }
+  .panel-event { font-size: 0.82rem; color: var(--muted); margin-bottom: 16px; }
+  .stage-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .stage-pill {
+    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 4px; border: 1px solid; cursor: pointer; transition: all 0.15s;
+  }
+  .stage-pill.done { background: rgba(76,175,125,0.15); color: var(--green); border-color: rgba(76,175,125,0.4); }
+  .stage-pill.current { background: var(--gold-dim); color: var(--gold); border-color: var(--gold-border); }
+  .stage-pill.pending { background: transparent; color: var(--muted); border-color: rgba(255,255,255,0.1); }
+
+  .panel-body { padding: 20px 24px; }
+  .panel-section { margin-bottom: 22px; }
+  .panel-section-title {
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 10px;
+  }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .info-item label { font-size: 0.67rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 2px; }
+  .info-item span { font-size: 0.85rem; }
+
+  /* ACTION BUTTONS */
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .action-btn {
+    background: var(--card); border: 1px solid var(--gold-border);
+    color: var(--offwhite); font-family: 'DM Sans', sans-serif; font-size: 0.78rem;
+    font-weight: 500; padding: 10px 12px; border-radius: 6px; cursor: pointer;
+    text-align: left; transition: all 0.18s; display: flex; align-items: center; gap: 8px;
+  }
+  .action-btn:hover { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+  .action-btn .icon { font-size: 1rem; }
+
+  /* GENERATE OUTPUT */
+  .gen-area { margin-top: 18px; }
+  .gen-output {
+    background: var(--mid); border: 1px solid var(--gold-border); border-radius: 8px;
+    overflow: hidden; display: none; margin-top: 14px;
+  }
+  .gen-output-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--gold-border);
+  }
+  .gen-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+  .gen-text { padding: 14px; font-size: 0.84rem; line-height: 1.72; white-space: pre-wrap; max-height: 380px; overflow-y: auto; }
+  .copy-btn {
+    background: transparent; border: 1px solid var(--gold-border); color: var(--offwhite);
+    font-family: 'DM Sans', sans-serif; font-size: 0.72rem; padding: 5px 12px; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .copy-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ENQUIRIES TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  thead th {
+    text-align: left; padding: 10px 14px; font-size: 0.67rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--gold-border);
+  }
+  tbody tr { border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.15s; cursor: pointer; }
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+  tbody td { padding: 11px 14px; vertical-align: top; }
+  .new-badge {
+    display: inline-block; background: var(--gold); color: var(--black);
+    font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+    letter-spacing: 0.06em; text-transform: uppercase; margin-left: 6px;
+  }
+
+  /* TOOLS VIEW */
+  .tools-grid { display: grid; grid-template-columns: 200px 1fr; gap: 0; min-height: 70vh; }
+  .tools-nav { border-right: 1px solid var(--gold-border); padding: 16px 0; }
+  .tool-nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 18px;
+    font-size: 0.83rem; cursor: pointer; color: var(--muted);
+    border-left: 2px solid transparent; transition: all 0.15s;
+  }
+  .tool-nav-item:hover { color: var(--offwhite); }
+  .tool-nav-item.active { color: var(--gold); border-left-color: var(--gold); background: var(--gold-dim); font-weight: 500; }
+  .tool-panel { display: none; padding: 24px 28px; }
+  .tool-panel.active { display: block; }
+  .tool-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; margin-bottom: 5px; }
+  .tool-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 22px; }
+
+  /* FORM */
+  .fg { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .fg.solo { grid-template-columns: 1fr; }
+  .fg.trio { grid-template-columns: 1fr 1fr 1fr; }
+  .f { display: flex; flex-direction: column; gap: 5px; }
+  label.fl { font-size: 0.68rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  input, select, textarea {
+    background: var(--mid); border: 1px solid var(--gold-border); border-radius: 6px;
+    color: var(--offwhite); font-family: 'DM Sans', sans-serif; font-size: 0.86rem;
+    padding: 9px 13px; outline: none; transition: border-color 0.15s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--mid); }
+
+  .gen-btn {
+    background: var(--gold); color: var(--black); border: none; border-radius: 6px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.84rem; font-weight: 700;
+    padding: 10px 20px; cursor: pointer; transition: all 0.18s; display: inline-flex;
+    align-items: center; gap: 8px; margin-top: 14px;
+  }
+  .gen-btn:hover { background: #d9b85c; }
+  .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .hooks-grid { display: grid; gap: 9px; margin-top: 16px; }
+  .hook-card {
+    background: var(--mid); border: 1px solid var(--gold-border); border-radius: 7px;
+    padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px; font-size: 0.86rem; line-height: 1.5;
+  }
+  .hook-n { font-family: 'Playfair Display', serif; color: var(--gold); min-width: 20px; }
+
+  /* SPINNER */
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(0,0,0,0.3); border-top-color: var(--black); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--gold); color: var(--black);
+    font-size: 0.8rem; font-weight: 600; padding: 9px 16px; border-radius: 6px;
+    opacity: 0; transform: translateY(8px); transition: all 0.22s; pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199;
+    display: none;
+  }
+  .overlay.show { display: block; }
+
+  .empty-stage { color: var(--muted); font-size: 0.78rem; font-style: italic; padding: 8px 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Floor Fillers <span>Events</span></div>
+  <div class="header-right">
+    <span class="sync-status" id="syncStatus">Last synced: —</span>
+    <button class="sync-btn" onclick="loadAllData()">
+      <span id="syncIcon">⟳</span> Sync Drive
+    </button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('pipeline', this)">📋 Pipeline</div>
+  <div class="tab" onclick="showTab('enquiries', this)">✉️ Enquiries</div>
+  <div class="tab" onclick="showTab('tools', this)">⚡ Tools</div>
+</div>
+
+<!-- PIPELINE -->
+<div class="view active" id="view-pipeline">
+  <div class="pipeline-header">
+    <div>
+      <div class="pipeline-title">Client Pipeline</div>
+      <div class="lead-count" id="pipelineCount">Loading…</div>
+    </div>
+  </div>
+  <div class="stages-scroll">
+    <div class="stages" id="stagesContainer">
+      <div style="color:var(--muted);font-size:0.85rem;padding:20px">Loading pipeline from Google Drive…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ENQUIRIES -->
+<div class="view" id="view-enquiries">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">
+    <div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.4rem">New Enquiries</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">From your Google Form</div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Date</th>
+          <th>Venue</th>
+          <th>Guests</th>
+          <th>Source</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="enquiriesTable">
+        <tr><td colspan="7" style="color:var(--muted);padding:20px">Loading enquiries…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TOOLS -->
+<div class="view" id="view-tools">
+  <div class="tools-grid">
+    <div class="tools-nav">
+      <div style="font-size:0.64rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:4px 18px 10px">Leads</div>
+      <div class="tool-nav-item active" onclick="showTool('enquiry-reply', this)"><span>✉️</span> Enquiry Reply</div>
+      <div class="tool-nav-item" onclick="showTool('followup', this)"><span>🔁</span> Follow-Up</div>
+      <div class="tool-nav-item" onclick="showTool('quote', this)"><span>💰</span> Quote / Proposal</div>
+      <div style="font-size:0.64rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:14px 18px 10px">Clients</div>
+      <div class="tool-nav-item" onclick="showTool('onboard', this)"><span>🎉</span> Onboarding</div>
+      <div class="tool-nav-item" onclick="showTool('brief', this)"><span>📋</span> Event Brief</div>
+      <div class="tool-nav-item" onclick="showTool('review', this)"><span>⭐</span> Review Request</div>
+      <div class="tool-nav-item" onclick="showTool('anniversary', this)"><span>💌</span> Anniversary</div>
+      <div style="font-size:0.64rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:14px 18px 10px">Content</div>
+      <div class="tool-nav-item" onclick="showTool('hooks', this)"><span>🎬</span> Reel Hooks</div>
+      <div class="tool-nav-item" onclick="showTool('caption', this)"><span>✍️</span> Caption</div>
+    </div>
+
+    <div>
+      <!-- ENQUIRY REPLY -->
+      <div class="tool-panel active" id="tool-enquiry-reply">
+        <div class="tool-title">Enquiry Reply</div>
+        <div class="tool-sub">Respond to a new lead with a warm, personalised first reply.</div>
+        <div class="fg"><div class="f"><label class="fl">Client Name</label><input id="er-name"></div><div class="f"><label class="fl">Event Type</label><select id="er-type"><option>Wedding</option><option>Corporate</option><option>Birthday / Milestone</option></select></div></div>
+        <div class="fg trio"><div class="f"><label class="fl">Event Date</label><input id="er-date"></div><div class="f"><label class="fl">Venue</label><input id="er-venue"></div><div class="f"><label class="fl">Guest Count</label><input id="er-guests"></div></div>
+        <div class="fg"><div class="f"><label class="fl">Service</label><select id="er-svc"><option>DJ + MC</option><option>DJ Only</option><option>MC Only</option><option>DJ + MC + Lighting</option></select></div><div class="f"><label class="fl">How They Found You</label><input id="er-source" placeholder="e.g. Instagram, word of mouth"></div></div>
+        <div class="fg solo"><div class="f"><label class="fl">Their Message</label><textarea id="er-msg" placeholder="Paste their enquiry or notes…"></textarea></div></div>
+        <button class="gen-btn" onclick="gen('er')"><span id="er-spin"></span> Generate Reply</button>
+        <div class="gen-output" id="out-er"><div class="gen-output-header"><span class="gen-label">Draft Reply</span><button class="copy-btn" onclick="copyOut('out-er')">Copy</button></div><div class="gen-text" id="out-er-text"></div></div>
+      </div>
+
+      <!-- FOLLOW UP -->
+      <div class="tool-panel" id="tool-followup">
+        <div class="tool-title">Follow-Up Sequence</div>
+        <div class="tool-sub">3-email cadence for leads that have gone quiet.</div>
+        <div class="fg"><div class="f"><label class="fl">Client Name</label><input id="fu-name"></div><div class="f"><label class="fl">Event Type</label><select id="fu-type"><option>Wedding</option><option>Corporate</option><option>Birthday / Milestone</option></select></div></div>
+        <div class="fg"><div class="f"><label class="fl">Event Date</label><input id="fu-date"></div><div class="f"><label class="fl">Last Contact</label><input id="fu-last" placeholder="e.g. Sent quote 3 days ago"></div></div>
+        <div class="fg solo"><div class="f"><label class="fl">Context</label><textarea id="fu-notes" placeholder="e.g. They seemed keen but are comparing a few DJs…"></textarea></div></div>
+        <button class="gen-btn" onclick="gen('fu')"><span id="fu-spin"></span> Build Sequence</button>
+        <div class="gen-output" id="out-fu"><div class="gen-output-header"><span class="gen-label">Follow-Up Sequence</span><button class="copy-btn" onclick="copyOut('out-fu')">Copy</button></div><div class="gen-text" id="out-fu-text"></div></div>
+      </div>
+
+      <!-- QUOTE -->
+      <div class="tool-panel" id="tool-quote">
+        <div class="tool-title">Quote / Proposal</div>
+        <div class="tool-sub">Professional quote outline ready to send.</div>
+        <div class="fg"><div class="f"><label class="fl">Client Name</label><input id="q-name"></div><div class="f"><label class="fl">Event Date</label><input id="q-date"></div></div>
+        <div class="fg"><div class="f"><label class="fl">Venue</label><input id="q-venue"></div><div class="f"><label class="fl">Guest Count</label><input id="q-guests"></div></div>
+        <div class="fg"><div class="f"><label class="fl">Package</label><select id="q-pkg"><option>DJ + MC</option><option>DJ Only</option><option>MC Only</option><option>Full Premium Package</option></select></div><div class="f"><label class="fl">Hours</label><input id="q-hours" placeholder="e.g. 5 hours"></div></div>
+        <div class="fg solo"><div class="f"><label class="fl">Add-ons / Special Requests</label><textarea id="q-extras" placeholder="e.g. Ceremony music, lighting, travel…"></textarea></div></div>
+        <button class="gen-btn" onclick="gen('q')"><span id="q-spin"></span> Draft Quote</button>
+        <div class="gen-output" id="out-q"><div class="gen-output-header"><span class="gen-label">Quote Draft</span><button class="copy-btn" onclick="copyOut('out-q')">Copy</button></div><div class="gen-text" id="out-q-text"></div></div>
+      </div>
+
+      <!-- ONBOARD -->
+      <div class="tool-panel" id="tool-onboard">
+        <div class="tool-title">Onboarding Email</div>
+        <div class="tool-sub">Welcome email once a booking is confirmed.</div>
+        <div class="fg"><div class="f"><label class="fl">Client Name</label><input id="ob-name"></div><div class="f"><label class="fl">Event Date</label><input id="ob-date"></div></div>
+        <div class="fg"><div class="f"><label class="fl">Venue</label><input id="ob-venue"></div><div class="f"><label class="fl">Package</label><select id="ob-pkg"><option>DJ + MC</option><option>DJ Only</option><option>MC Only</option><option>Full Premium Package</option></select></div></div>
+        <div class="fg solo"><div class="f"><label class="fl">Personal Notes</label><textarea id="ob-notes" placeholder="e.g. First dance confirmed, large bridal party…"></textarea></div></div>
+        <button class="gen-btn" onclick="gen('ob')"><span id="ob-spin"></span> Write Email</button>
+        <div class="gen-output" id="out-ob"><div class="gen-output-header"><span class="gen-label">Onboarding Email</span><button class="copy-btn" onclick="copyOut('out-ob')">Copy</button></div><div class="gen-text" id="out-ob-text"></div></div>
+      </div>
+
+      <!-- BRIEF -->
+      <div class="tool-panel" id="tool-brief">
+        <div class="tool-title">Event Brief Builder</div>
+        <div class="tool-sub">Paste discovery questionnaire answers — get a clean, usable event brief.</div>
+        <div class="fg"><div class="f"><label class="fl">Client Name</label><input id="br-name"></div><div class="f"><label class="fl">Event Date & Venue</label><input id="br-venue"></div></div>
+        <div class="fg solo"><div class="f"><label class="fl">Raw Questionnaire Answers</label><textarea id="br-raw" style="min-height:140px" placeholder="Paste their full discovery questionnaire responses here…"></textarea></div></div>
+        <button class="gen-btn" onclick="gen('br')"><span id="br-spin"></span> Build Brief</button>
+        <div class="gen-output" id="out-br"><div class="gen-output-header"><span class="gen-label">Event Brief</span><button class="copy-btn" onclick="copyOut('out-br')">Copy</button></div><div class="gen-text" id="out-br-text"></div></div>
+      </div>
+
+      <!-- REVIEW -->
+      <div class="tool-panel" id="tool-review">
+        <div class="tool-title">Review Request</div>
+        <div class="tool-sub">Warm, non-pushy ask for a Google or directory review.</div>
+        <div class="fg"><div class="f"><label class="fl">Client Name</label><input id="rv-name"></div><div class="f"><label class="fl">Event Date</label><input id="rv-date"></div></div>
+        <div class="fg"><div class="f"><label class="fl">Platform</label><select id="rv-plat"><option>Google</option><option>Easy Weddings</option><option>Hitched</option><option>Google + Easy Weddings</option></select></div><div class="f"><label class="fl">Standout Moment</label><input id="rv-moment" placeholder="e.g. Dance floor packed all night"></div></div>
+        <button class="gen-btn" onclick="gen('rv')"><span id="rv-spin"></span> Write Request</button>
+        <div class="gen-output" id="out-rv"><div class="gen-output-header"><span class="gen-label">Review Request</span><button class="copy-btn" onclick="copyOut('out-rv')">Copy</button></div><div class="gen-text" id="out-rv-text"></div></div>
+      </div>
+
+      <!-- ANNIVERSARY -->
+      <div class="tool-panel" id="tool-anniversary">
+        <div class="tool-title">1-Year Anniversary Email</div>
+        <div class="tool-sub">A warm touch on their first anniversary — keeps Floor Fillers front of mind for referrals.</div>
+        <div class="fg"><div class="f"><label class="fl">Client Name</label><input id="an-name"></div><div class="f"><label class="fl">Event Date</label><input id="an-date"></div></div>
+        <div class="fg"><div class="f"><label class="fl">Venue</label><input id="an-venue"></div><div class="f"><label class="fl">Memorable Moment</label><input id="an-moment" placeholder="e.g. First dance to Pearl Jam"></div></div>
+        <button class="gen-btn" onclick="gen('an')"><span id="an-spin"></span> Write Email</button>
+        <div class="gen-output" id="out-an"><div class="gen-output-header"><span class="gen-label">Anniversary Email</span><button class="copy-btn" onclick="copyOut('out-an')">Copy</button></div><div class="gen-text" id="out-an-text"></div></div>
+      </div>
+
+      <!-- HOOKS -->
+      <div class="tool-panel" id="tool-hooks">
+        <div class="tool-title">Reel Hooks</div>
+        <div class="tool-sub">Scroll-stopping hooks for your next Floor Fillers Reel.</div>
+        <div class="fg"><div class="f"><label class="fl">Moment / Event Type</label><input id="hk-event" placeholder="e.g. First dance, packed dance floor"></div><div class="f"><label class="fl">Hook Style</label><select id="hk-style"><option>POV:</option><option>Nobody: / Algorithm:</option><option>Comparison (good vs bad MC)</option><option>Things that hit different</option><option>Mix of all styles</option></select></div></div>
+        <div class="fg solo"><div class="f"><label class="fl">Context / Vibe</label><textarea id="hk-ctx" placeholder="e.g. Groom cried, surprise band switch, groom surprised bride with a song…"></textarea></div></div>
+        <button class="gen-btn" onclick="gen('hk')"><span id="hk-spin"></span> Generate Hooks</button>
+        <div id="hk-out"></div>
+      </div>
+
+      <!-- CAPTION -->
+      <div class="tool-panel" id="tool-caption">
+        <div class="tool-title">Caption Writer</div>
+        <div class="tool-sub">Brief → caption in the Floor Fillers voice.</div>
+        <div class="fg"><div class="f"><label class="fl">What's the post about?</label><input id="cap-about" placeholder="e.g. Reel of first dance that made the room tear up"></div><div class="f"><label class="fl">Event Type</label><select id="cap-type"><option>Wedding</option><option>Corporate</option><option>Behind the Scenes</option><option>General Content</option></select></div></div>
+        <div class="fg"><div class="f"><label class="fl">Tone</label><select id="cap-tone"><option>Warm & Emotional</option><option>Hype & Energetic</option><option>Funny & Relatable</option><option>Professional</option></select></div><div class="f"><label class="fl">CTA</label><select id="cap-cta"><option>Link in Bio</option><option>Save / Share</option><option>No CTA</option></select></div></div>
+        <div class="fg solo"><div class="f"><label class="fl">Extra Details</label><textarea id="cap-notes" placeholder="e.g. Shot at Stonefields, first dance to Can't Help Falling in Love…"></textarea></div></div>
+        <button class="gen-btn" onclick="gen('cap')"><span id="cap-spin"></span> Write Caption</button>
+        <div class="gen-output" id="out-cap"><div class="gen-output-header"><span class="gen-label">Caption</span><button class="copy-btn" onclick="copyOut('out-cap')">Copy</button></div><div class="gen-text" id="out-cap-text"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT DETAIL PANEL -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="detail-panel" id="detailPanel">
+  <button class="panel-close" onclick="closePanel()">✕</button>
+  <div class="panel-top">
+    <div class="panel-name" id="dp-name"></div>
+    <div class="panel-event" id="dp-event"></div>
+    <div class="stage-pills" id="dp-stages"></div>
+  </div>
+  <div class="panel-body">
+    <div class="panel-section">
+      <div class="panel-section-title">Details</div>
+      <div class="info-grid" id="dp-info"></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Generate Comms</div>
+      <div class="action-grid" id="dp-actions"></div>
+    </div>
+    <div class="gen-area">
+      <div class="gen-output" id="dp-out">
+        <div class="gen-output-header"><span class="gen-label" id="dp-out-label">Output</span><button class="copy-btn" onclick="copyOut('dp-out')">Copy</button></div>
+        <div class="gen-text" id="dp-out-text"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied ✓</div>
+
+<script>
+// ── DATA ──
+const ENQUIRY_SHEET_ID = '16cgzGEuUXX78zXMY0XzUmF5eEA52Vqje6xGnEPJgyHk';
+const BOOKING_TRACKER_ID = '1SuxdIG_eZTtSUsBhoKqccIriXmBs1T40';
+const DISCOVERY_SHEET_ID = '1I1XSBWoxK3WfC4pSc43ouXGbfNK7SypKYXoeaII_m9Q';
+
+let enquiries = [];
+let bookings = [];
+let discoveryResponses = [];
+let currentClient = null;
+
+const PIPELINE_STAGES = [
+  { id: 'enquiry',      label: 'New Enquiry' },
+  { id: 'discovery',    label: 'Discovery Call' },
+  { id: 'quote',        label: 'Quote Issued' },
+  { id: 'negotiation',  label: 'Negotiation' },
+  { id: 'terms',        label: 'Terms & Deposit' },
+  { id: 'planning',     label: 'Planning' },
+  { id: 'finalmeeting', label: 'Final Meeting' },
+  { id: 'balance',      label: 'Balance Due' },
+  { id: 'delivered',    label: 'Delivered' },
+  { id: 'review',       label: 'Review / Follow-up' },
+];
+
+// ── API CALL ──
+async function callClaude(prompt) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6", max_tokens: 1000,
+      system: `You are the voice of Floor Fillers Events — a premium wedding and corporate DJ + MC business based in Melbourne (expanding to London and Europe). Owner is Marc: warm, confident, Italian-Australian, mid-20s, knows the wedding industry inside out. Write as if Marc is personally writing. Warm, direct, never stiff or robotic. No filler phrases.`,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  const d = await r.json();
+  return d.content?.map(c => c.text || '').join('') || 'Error — please try again.';
+}
+
+// ── LOAD DATA FROM GOOGLE DRIVE ──
+async function loadAllData() {
+  document.getElementById('syncIcon').textContent = '↻';
+  document.getElementById('syncStatus').textContent = 'Syncing…';
+
+  const results = await Promise.allSettled([
+    loadSheet(ENQUIRY_SHEET_ID),
+    loadSheet(BOOKING_TRACKER_ID),
+    loadSheet(DISCOVERY_SHEET_ID)
+  ]);
+
+  if (results[0].status === 'fulfilled') parseEnquiries(results[0].value);
+  if (results[1].status === 'fulfilled') parseBookings(results[1].value);
+  if (results[2].status === 'fulfilled') parseDiscovery(results[2].value);
+
+  renderPipeline();
+  renderEnquiriesTable();
+
+  document.getElementById('syncIcon').textContent = '✓';
+  document.getElementById('syncStatus').textContent = 'Synced ' + new Date().toLocaleTimeString();
+  setTimeout(() => document.getElementById('syncIcon').textContent = '⟳', 2000);
+}
+
+async function loadSheet(fileId) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6", max_tokens: 1000,
+      system: "You are a data extraction assistant. Extract all rows from the Google Sheet provided via the MCP tool and return them as a JSON array. Return ONLY valid JSON, no markdown, no explanation.",
+      messages: [{ role: "user", content: `Read file ${fileId} from Google Drive and return all rows as a JSON array of objects, using the header row as keys.` }],
+      mcp_servers: [{ type: "url", url: "https://drivemcp.googleapis.com/mcp/v1", name: "gdrive" }]
+    })
+  });
+  const d = await r.json();
+  const text = d.content?.map(c => c.text || '').join('') || '[]';
+  try {
+    const clean = text.replace(/```json|```/g, '').trim();
+    const start = clean.indexOf('[');
+    return JSON.parse(start >= 0 ? clean.slice(start) : clean);
+  } catch { return []; }
+}
+
+function parseEnquiries(rows) {
+  enquiries = rows.filter(r => r['First Name & Partners Name\n(If applicable)'] || r['Email Address']).map(r => ({
+    name: r['First Name & Partners Name\n(If applicable)'] || r['First Name & Partners Name (If applicable)'] || '—',
+    email: r['Email Address'] || '',
+    phone: r['Contact Number'] || '',
+    date: r['Event Date (DD/MM/YYYY)'] || '',
+    venue: r['Venue Name'] || '',
+    guests: r['Number of Guests'] || '',
+    time: r['Event Start & End Time'] || '',
+    source: r['How did you hear about us?'] || '',
+    notes: r["Is there anything else you'd like us to know?"] || '',
+    timestamp: r['Timestamp'] || '',
+    stage: 'enquiry'
+  }));
+}
+
+function parseBookings(rows) {
+  bookings = rows.filter(r => r['Client Name(s)'] && r['Event Date']).map(r => {
+    // Map booking tracker columns to pipeline stage
+    let stage = 'enquiry';
+    if (r['Quote / Info Pack Issued'] === 'Yes') stage = 'quote';
+    if (r['Terms of Service & Invoice Issued'] === 'Yes') stage = 'terms';
+    if (r['Deposit Paid'] === 'Yes' || r['Deposit Received']) stage = 'planning';
+    if (r['Discovery Questions Sent'] === 'Sent' || r['Discovery Questions Sent'] === 'Yes') stage = 'planning';
+    if (r['Final Meeting Booked'] === 'Yes') stage = 'finalmeeting';
+    if (r['Balance Paid'] === 'Yes' || r['Balance Paid 1'] === 'Yes') stage = 'balance';
+    if (r['Status'] === 'Confirmed' && (r['Balance Paid'] === 'Yes' || r['Balance Paid 1'] === 'Yes')) stage = 'delivered';
+    if (r['Status'] === 'Lost') stage = null;
+
+    return {
+      name: r['Client Name(s)'],
+      date: r['Event Date'],
+      venue: r['Venue'] || r['Venue Name'] || '',
+      type: r['Event Type'] || '',
+      service: r['Service Booked'] || r['Services Required'] || '',
+      dj: r['DJ Assigned'] || '',
+      mc: r['MC Assinged'] || r['MC Assigned'] || '',
+      fee: r['Total Fee ($)'] || '',
+      deposit: r['Deposit Received'] || '',
+      balance: r['Balance '] || '',
+      status: r['Status'] || '',
+      notes: r['Notes'] || '',
+      stage,
+      source: 'booking'
+    };
+  }).filter(b => b.stage !== null);
+}
+
+function parseDiscovery(rows) {
+  discoveryResponses = rows.filter(r => r['Timestamp']).map(r => ({
+    name: r["Let's start with an easy one - Please provide your names below :) "] || '',
+    musicVibe: r['What kind of music vibe are you envisioning for your dancefloor? (select as many that apply)'] || '',
+    mustPlay: r['Do you have a list of must-play songs you can share?'] || '',
+    dontPlay: r['What about do-not-play songs or artists?'] || '',
+    firstDance: r['What is your first dance song (if applicable)'] || '',
+    atmosphere: r['What kind of atmosphere are you envisioning (e.g. sentimental, fun, energetic, classy)?'] || '',
+    timestamp: r['Timestamp'] || ''
+  }));
+}
+
+// ── RENDER PIPELINE ──
+function renderPipeline() {
+  // Merge enquiries + bookings
+  const allClients = [
+    ...enquiries.map(e => ({ ...e, source: 'enquiry' })),
+    ...bookings
+  ];
+
+  document.getElementById('pipelineCount').textContent = `${allClients.length} active clients`;
+
+  const container = document.getElementById('stagesContainer');
+  container.innerHTML = '';
+
+  PIPELINE_STAGES.forEach(stage => {
+    const clients = allClients.filter(c => c.stage === stage.id);
+    const col = document.createElement('div');
+    col.className = 'stage-col';
+    col.innerHTML = `
+      <div class="stage-header">
+        <span class="stage-name">${stage.label}</span>
+        <span class="stage-badge">${clients.length}</span>
+      </div>
+      <div class="stage-cards">
+        ${clients.length === 0 ? '<div class="empty-stage">No clients</div>' : clients.map(c => `
+          <div class="lead-card" onclick="openClient(${JSON.stringify(c).replace(/"/g, '&quot;')})">
+            <div class="card-name">${c.name}</div>
+            <div class="card-meta">${c.date || '—'}<br>${c.venue || ''}</div>
+            <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || c.service || 'Enquiry'}</span>
+          </div>`).join('')}
+      </div>`;
+    container.appendChild(col);
+  });
+}
+
+// ── RENDER ENQUIRIES TABLE ──
+function renderEnquiriesTable() {
+  const tbody = document.getElementById('enquiriesTable');
+  if (!enquiries.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:20px">No enquiries found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = enquiries.map(e => `
+    <tr onclick="openClient(${JSON.stringify(e).replace(/"/g, '&quot;')})">
+      <td><strong>${e.name}</strong>${isNew(e.timestamp) ? '<span class="new-badge">New</span>' : ''}<br><span style="font-size:0.75rem;color:var(--muted)">${e.email}</span></td>
+      <td>${e.date}</td>
+      <td>${e.venue}</td>
+      <td>${e.guests}</td>
+      <td>${e.source}</td>
+      <td style="max-width:180px;font-size:0.78rem;color:var(--muted)">${(e.notes||'').slice(0,80)}${(e.notes||'').length>80?'…':''}</td>
+      <td><button class="copy-btn" onclick="event.stopPropagation();quickReply(${JSON.stringify(e).replace(/"/g, '&quot;')})">Reply</button></td>
+    </tr>`).join('');
+}
+
+function isNew(ts) {
+  if (!ts) return false;
+  const d = new Date(ts);
+  return (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
+}
+
+// ── CLIENT PANEL ──
+function openClient(c) {
+  currentClient = c;
+  document.getElementById('dp-name').textContent = c.name;
+  document.getElementById('dp-event').textContent = [c.type || c.service || '', c.date, c.venue].filter(Boolean).join(' · ');
+
+  // Stage pills
+  const stageIdx = PIPELINE_STAGES.findIndex(s => s.id === c.stage);
+  document.getElementById('dp-stages').innerHTML = PIPELINE_STAGES.map((s, i) => {
+    const cls = i < stageIdx ? 'done' : i === stageIdx ? 'current' : 'pending';
+    return `<span class="stage-pill ${cls}">${i < stageIdx ? '✓ ' : ''}${s.label}</span>`;
+  }).join('');
+
+  // Info
+  document.getElementById('dp-info').innerHTML = [
+    ['Date', c.date], ['Venue', c.venue], ['Service', c.service || c.type],
+    ['Guests', c.guests], ['Email', c.email], ['Phone', c.phone || c.mobile],
+    ['Fee', c.fee], ['Status', c.status]
+  ].filter(([,v]) => v).map(([k,v]) => `<div class="info-item"><label>${k}</label><span>${v}</span></div>`).join('');
+
+  // Action buttons based on stage
+  const actions = getActionsForStage(c);
+  document.getElementById('dp-actions').innerHTML = actions.map(a =>
+    `<button class="action-btn" onclick="triggerAction('${a.id}')"><span class="icon">${a.icon}</span>${a.label}</button>`
+  ).join('');
+
+  document.getElementById('dp-out').style.display = 'none';
+  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+}
+
+function getActionsForStage(c) {
+  const all = [
+    { id: 'reply', icon: '✉️', label: 'Enquiry Reply' },
+    { id: 'discovery-call', icon: '📞', label: 'Discovery Call Email' },
+    { id: 'quote', icon: '💰', label: 'Draft Quote' },
+    { id: 'onboard', icon: '🎉', label: 'Onboarding Email' },
+    { id: 'brief', icon: '📋', label: 'Build Brief' },
+    { id: 'final-meeting', icon: '📅', label: 'Final Meeting Email' },
+    { id: 'balance', icon: '💳', label: 'Balance Reminder' },
+    { id: 'review', icon: '⭐', label: 'Review Request' },
+    { id: 'anniversary', icon: '💌', label: 'Anniversary Email' },
+  ];
+  // Always show all — smart people know which is relevant
+  return all;
+}
+
+function closePanel() {
+  document.getElementById('detailPanel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+async function triggerAction(actionId) {
+  const c = currentClient;
+  if (!c) return;
+
+  const labels = {
+    'reply': 'Enquiry Reply', 'discovery-call': 'Discovery Call Email', 'quote': 'Draft Quote',
+    'onboard': 'Onboarding Email', 'brief': 'Event Brief', 'final-meeting': 'Final Meeting Email',
+    'balance': 'Balance Reminder', 'review': 'Review Request', 'anniversary': 'Anniversary Email'
+  };
+
+  document.getElementById('dp-out-label').textContent = labels[actionId] || 'Output';
+  document.getElementById('dp-out').style.display = 'block';
+  document.getElementById('dp-out-text').textContent = 'Generating…';
+
+  const prompts = {
+    'reply': `Write a warm, personalised first-reply email to a new enquiry for Floor Fillers Events. Client: ${c.name} | Date: ${c.date} | Venue: ${c.venue} | Source: ${c.source}. Message: "${c.notes}". Respond with genuine excitement, ask about service needs, invite them to a 10-min discovery call. Under 180 words.`,
+    'discovery-call': `Write an email to ${c.name} requesting a 10-minute discovery call. Event: ${c.date} at ${c.venue}. Keep it light, quick, offer a Calendly-style "pick a time" vibe. Under 120 words.`,
+    'quote': `Draft a professional but warm quote/proposal for Floor Fillers Events. Client: ${c.name} | Date: ${c.date} | Venue: ${c.venue} | Guests: ${c.guests} | Service: ${c.service || c.type}. Include scope, what's included, investment (use [PRICE] placeholder), and next steps.`,
+    'onboard': `Write a booking confirmation and welcome email for Floor Fillers Events. Client: ${c.name} | Date: ${c.date} | Venue: ${c.venue}. Celebratory tone, confirm what's booked, outline next steps (questionnaire, playlist, planning call). Under 200 words.`,
+    'brief': `Create a structured event brief for ${c.name}'s event on ${c.date} at ${c.venue}. Service: ${c.service || c.type}. Note: discovery questionnaire responses may be available. Format with sections: Event Overview, Music, Key Moments, Special Requests, MC Notes.`,
+    'final-meeting': `Write an email to ${c.name} to book their final run-sheet review meeting, approximately 5–6 weeks before their event on ${c.date}. Warm, professional. Mention what you'll cover (run-sheet, music cues, timeline). Under 150 words.`,
+    'balance': `Write a polite final balance payment reminder for ${c.name}'s event on ${c.date}. Balance: ${c.balance || '[AMOUNT]'}. Friendly but clear. Under 100 words.`,
+    'review': `Write a post-event review request for ${c.name} who had their event at ${c.venue}. Warm, personal, reference the night. Ask for a Google review. Under 120 words. Use [REVIEW LINK] placeholder.`,
+    'anniversary': `Write a one-year anniversary email from Floor Fillers Events to ${c.name}. Reference their event at ${c.venue} on ${c.date}. Warm and heartfelt, wishes them well, subtly keeps Floor Fillers front of mind for referrals. Under 150 words.`
+  };
+
+  const text = await callClaude(prompts[actionId] || 'Generate a professional email for this client.');
+  document.getElementById('dp-out-text').textContent = text;
+}
+
+async function quickReply(e) {
+  currentClient = e;
+  showTab('tools', document.querySelector('.tab:nth-child(3)'));
+  showTool('enquiry-reply', document.querySelector('.tool-nav-item'));
+  document.getElementById('er-name').value = e.name || '';
+  document.getElementById('er-date').value = e.date || '';
+  document.getElementById('er-venue').value = e.venue || '';
+  document.getElementById('er-guests').value = e.guests || '';
+  document.getElementById('er-source').value = e.source || '';
+  document.getElementById('er-msg').value = e.notes || '';
+}
+
+// ── TOOLS GENERATE ──
+const v = id => document.getElementById(id)?.value?.trim() || '';
+
+async function gen(prefix) {
+  const spinEl = document.getElementById(`${prefix}-spin`);
+  const outEl = document.getElementById(`out-${prefix}`);
+  const textEl = document.getElementById(`out-${prefix}-text`);
+
+  let prompt = '';
+
+  if (prefix === 'er') {
+    prompt = `Write a warm, personalised first-reply email to a new event enquiry for Floor Fillers Events. Client: ${v('er-name')} | Event: ${v('er-type')} | Date: ${v('er-date')} | Venue: ${v('er-venue')} | Guests: ${v('er-guests')} | Service: ${v('er-svc')} | Source: ${v('er-source')}. Their message: "${v('er-msg')}". Reply with genuine excitement, confirm availability, invite them to a 10-min discovery call. Under 200 words.`;
+  } else if (prefix === 'fu') {
+    prompt = `Create a 3-email follow-up sequence for a lead that's gone quiet. Client: ${v('fu-name')} | Event: ${v('fu-type')} | Date: ${v('fu-date')} | Last contact: ${v('fu-last')}. Context: ${v('fu-notes')}. Email 1 (Day 3): gentle check-in. Email 2 (Day 7): add value. Email 3 (Day 14): final nudge. Each under 100 words. Human, never pushy.`;
+  } else if (prefix === 'q') {
+    prompt = `Draft a professional quote/proposal for Floor Fillers Events. Client: ${v('q-name')} | Date: ${v('q-date')} | Venue: ${v('q-venue')} | Guests: ${v('q-guests')} | Package: ${v('q-pkg')} | Hours: ${v('q-hours')}. Add-ons: ${v('q-extras')}. Structure: opening paragraph, scope, inclusions, investment ([PRICE] placeholder), next steps.`;
+  } else if (prefix === 'ob') {
+    prompt = `Write a booking confirmation and welcome email for Floor Fillers Events. Client: ${v('ob-name')} | Date: ${v('ob-date')} | Venue: ${v('ob-venue')} | Package: ${v('ob-pkg')}. Notes: ${v('ob-notes')}. Celebratory, confirm what's locked in, outline next steps. Under 220 words.`;
+  } else if (prefix === 'br') {
+    prompt = `Summarise these raw client discovery questionnaire answers into a clean, structured event brief for use on the night. Client: ${v('br-name')} | Event: ${v('br-venue')}. Raw answers: ${v('br-raw')}. Sections: Event Overview, Music Preferences, Key Moments, Do Not Play, Special Requests, MC Notes.`;
+  } else if (prefix === 'rv') {
+    prompt = `Write a post-event review request for Floor Fillers Events. Client: ${v('rv-name')} | Event date: ${v('rv-date')} | Platform: ${v('rv-plat')} | Standout moment: ${v('rv-moment')}. Genuine, personal, short (under 120 words). Include [REVIEW LINK] placeholder.`;
+  } else if (prefix === 'an') {
+    prompt = `Write a one-year anniversary email from Floor Fillers Events to ${v('an-name')}. They had their event at ${v('an-venue')} on ${v('an-date')}. Highlight: ${v('an-moment')}. Warm and heartfelt, keep Floor Fillers front of mind for referrals. Under 150 words.`;
+  } else if (prefix === 'cap') {
+    prompt = `Write an Instagram caption for Floor Fillers Events. Post: ${v('cap-about')} | Event: ${v('cap-type')} | Tone: ${v('cap-tone')} | CTA: ${v('cap-cta')}. Details: ${v('cap-notes')}. 2–3 punchy lines, 2–3 hashtags. Native Instagram energy.`;
+  } else if (prefix === 'hk') {
+    // Hooks handled separately
+    const hkOut = document.getElementById('hk-out');
+    const spinEl2 = document.getElementById('hk-spin');
+    spinEl2.innerHTML = '<span class="spin"></span>';
+    document.querySelectorAll('.gen-btn').forEach(b => b.disabled = true);
+    const p = `Generate 7 scroll-stopping Instagram Reel hook lines for Floor Fillers Events. Moment: ${v('hk-event')} | Style: ${v('hk-style')} | Context: ${v('hk-ctx')}. Rules: native Reels format, punchy, no hashtags, specific to weddings/events. Return ONLY 7 hooks numbered 1–7, one per line.`;
+    const result = await callClaude(p);
+    const lines = result.split('\n').filter(l => /^\d/.test(l.trim()));
+    hkOut.innerHTML = '<div class="hooks-grid">' + lines.map((line, i) => {
+      const text = line.replace(/^\d+[\.\)]\s*/, '');
+      return `<div class="hook-card"><span class="hook-n">${i+1}</span><span style="flex:1">${text}</span><button class="copy-btn" onclick="copyText('${text.replace(/'/g,"\\'")}')">Copy</button></div>`;
+    }).join('') + '</div>';
+    spinEl2.innerHTML = '';
+    document.querySelectorAll('.gen-btn').forEach(b => b.disabled = false);
+    return;
+  }
+
+  if (spinEl) spinEl.innerHTML = '<span class="spin"></span>';
+  document.querySelectorAll('.gen-btn').forEach(b => b.disabled = true);
+  if (outEl) { outEl.style.display = 'block'; if (textEl) textEl.textContent = 'Generating…'; }
+
+  const result = await callClaude(prompt);
+  if (textEl) textEl.textContent = result;
+  if (spinEl) spinEl.innerHTML = '';
+  document.querySelectorAll('.gen-btn').forEach(b => b.disabled = false);
+}
+
+// ── UI HELPERS ──
+function showTab(id, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+function showTool(id, el) {
+  document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tool-nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tool-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+function copyOut(boxId) {
+  const text = document.getElementById(boxId + '-text')?.textContent;
+  if (text) copyText(text);
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  });
+}
+
+// ── INIT ──
+loadAllData();
+</script>
+</body>
+</html>
