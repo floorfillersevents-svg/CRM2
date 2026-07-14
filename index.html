@@ -633,7 +633,7 @@ function renderPipeline() {
       </div>
       <div class="stage-cards">
         ${stageClients.length === 0 ? '<div class="empty-stage">No clients</div>' : stageClients.map(c => `
-          <div class="lead-card" onclick="openClientById('${c.id}')">
+          <div class="lead-card" data-client-id="${c.id}">
             <div class="card-name">${c.name}</div>
             <div class="card-meta">${c.date || '—'}<br>${c.venue || ''}</div>
             <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || c.service || 'Enquiry'}</span>
@@ -641,6 +641,30 @@ function renderPipeline() {
       </div>`;
     container.appendChild(col);
   });
+  attachCardClickHandlers();
+}
+
+// Distinguishes a genuine tap/click from a scroll-drag, so cards in columns
+// you have to scroll sideways to reach still open reliably.
+function attachCardClickHandlers() {
+  const container = document.getElementById('stagesContainer');
+  let startX = 0, startY = 0, dragged = false;
+
+  container.onpointerdown = (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    dragged = false;
+  };
+  container.onpointermove = (e) => {
+    if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
+      dragged = true;
+    }
+  };
+  container.onpointerup = (e) => {
+    if (dragged) return; // was a scroll, not a tap — don't open anything
+    const card = e.target.closest('.lead-card');
+    if (card) openClientById(card.dataset.clientId);
+  };
 }
 
 function openClientById(id) {
