@@ -255,6 +255,25 @@
   .overlay.show { display: block; }
 
   .empty-stage { color: var(--muted); font-size: 0.78rem; font-style: italic; padding: 8px 4px; }
+
+  /* DASHBOARD */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  .metric-card { background: var(--card); border: 1px solid var(--gold-border); border-radius: 10px; padding: 18px 20px; }
+  .metric-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+  .metric-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--offwhite); }
+  .metric-value.gold { color: var(--gold); }
+  .chart-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .chart-row { display: grid; grid-template-columns: 90px 1fr 90px; align-items: center; gap: 12px; }
+  .chart-row-label { font-size: 0.78rem; color: var(--muted); }
+  .chart-bar-bg { background: rgba(255,255,255,0.04); border-radius: 4px; height: 20px; overflow: hidden; }
+  .chart-bar-fill { background: linear-gradient(90deg, var(--gold), #e8c876); height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+  .chart-row-value { font-size: 0.78rem; color: var(--offwhite); text-align: right; }
+
+  /* EDITABLE FEE FIELD */
+  .editable-field { display: flex; align-items: center; gap: 6px; }
+  .editable-field input { padding: 5px 8px; font-size: 0.85rem; width: 110px; }
+  .editable-field .save-btn { background: var(--gold); color: var(--black); border: none; border-radius: 4px; font-size: 0.68rem; font-weight: 700; padding: 5px 10px; cursor: pointer; }
+  .editable-field .save-btn:hover { background: #d9b85c; }
 </style>
 </head>
 <body>
@@ -272,6 +291,7 @@
 <div class="tabs">
   <div class="tab active" onclick="showTab('pipeline', this)">📋 Pipeline</div>
   <div class="tab" onclick="showTab('enquiries', this)">✉️ Enquiries</div>
+  <div class="tab" onclick="showTab('dashboard', this)">📊 Dashboard</div>
   <div class="tab" onclick="showTab('tools', this)">⚡ Tools</div>
 </div>
 
@@ -315,6 +335,26 @@
         <tr><td colspan="7" style="color:var(--muted);padding:20px">Loading enquiries…</td></tr>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="view" id="view-dashboard">
+  <div style="margin-bottom:22px">
+    <div style="font-family:'Playfair Display',serif;font-size:1.4rem">Financial Performance</div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-top:2px" id="dashSubtitle">Loading…</div>
+  </div>
+
+  <div class="metric-grid" id="metricGrid"></div>
+
+  <div style="margin-top:32px">
+    <div class="panel-section-title" style="margin-bottom:14px">Revenue by Month</div>
+    <div class="chart-wrap" id="monthChart"></div>
+  </div>
+
+  <div style="margin-top:32px">
+    <div class="panel-section-title" style="margin-bottom:14px">Pipeline Value by Stage</div>
+    <div class="chart-wrap" id="stageChart"></div>
   </div>
 </div>
 
@@ -528,6 +568,7 @@ async function loadAllData() {
 
   renderPipeline();
   renderEnquiriesTable();
+  renderDashboard();
 
   document.getElementById('syncIcon').textContent = '✓';
   document.getElementById('syncStatus').textContent = 'Synced ' + new Date().toLocaleTimeString();
@@ -628,6 +669,73 @@ function renderEnquiriesTable() {
     </tr>`).join('');
 }
 
+// ── DASHBOARD ──
+function parseFee(feeStr) {
+  if (!feeStr) return 0;
+  const cleaned = String(feeStr).replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+function formatMoney(n) {
+  return '$' + n.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+const BOOKED_STAGES = ['terms', 'planning', 'finalmeeting', 'balance', 'delivered', 'review'];
+const PIPELINE_ONLY_STAGES = ['enquiry', 'discovery', 'quote', 'negotiation'];
+
+function renderDashboard() {
+  document.getElementById('dashSubtitle').textContent = `${clients.length} active clients · updated ${new Date().toLocaleTimeString()}`;
+
+  const booked = clients.filter(c => BOOKED_STAGES.includes(c.stage));
+  const pipelineOnly = clients.filter(c => PIPELINE_ONLY_STAGES.includes(c.stage));
+
+  const bookedRevenue = booked.reduce((sum, c) => sum + parseFee(c.fee), 0);
+  const pipelineValue = pipelineOnly.reduce((sum, c) => sum + parseFee(c.fee), 0);
+  const avgBookingValue = booked.length ? bookedRevenue / booked.length : 0;
+
+  document.getElementById('metricGrid').innerHTML = `
+    <div class="metric-card"><div class="metric-label">Booked Revenue</div><div class="metric-value gold">${formatMoney(bookedRevenue)}</div></div>
+    <div class="metric-card"><div class="metric-label">Pipeline Value</div><div class="metric-value">${formatMoney(pipelineValue)}</div></div>
+    <div class="metric-card"><div class="metric-label">Booked Events</div><div class="metric-value">${booked.length}</div></div>
+    <div class="metric-card"><div class="metric-label">Avg Booking Value</div><div class="metric-value">${formatMoney(Math.round(avgBookingValue))}</div></div>
+  `;
+
+  // Revenue by month (booked clients only, grouped by event date's month/year)
+  const byMonth = {};
+  booked.forEach(c => {
+    const d = new Date(c.date);
+    if (isNaN(d)) return;
+    const key = d.toLocaleString('en-AU', { month: 'short', year: 'numeric' });
+    byMonth[key] = (byMonth[key] || 0) + parseFee(c.fee);
+  });
+  const monthEntries = Object.entries(byMonth).sort((a, b) => new Date('1 ' + a[0]) - new Date('1 ' + b[0]));
+  const maxMonth = Math.max(1, ...monthEntries.map(([, v]) => v));
+  document.getElementById('monthChart').innerHTML = monthEntries.length
+    ? monthEntries.map(([label, val]) => `
+      <div class="chart-row">
+        <div class="chart-row-label">${label}</div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(val / maxMonth * 100).toFixed(1)}%"></div></div>
+        <div class="chart-row-value">${formatMoney(val)}</div>
+      </div>`).join('')
+    : '<div class="empty-stage">No booked revenue with valid dates yet</div>';
+
+  // Pipeline value by stage (all non-lost stages with fee data)
+  const byStage = PIPELINE_STAGES.map(s => ({
+    label: s.label,
+    value: clients.filter(c => c.stage === s.id).reduce((sum, c) => sum + parseFee(c.fee), 0)
+  })).filter(s => s.value > 0);
+  const maxStage = Math.max(1, ...byStage.map(s => s.value));
+  document.getElementById('stageChart').innerHTML = byStage.length
+    ? byStage.map(s => `
+      <div class="chart-row">
+        <div class="chart-row-label">${s.label}</div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(s.value / maxStage * 100).toFixed(1)}%"></div></div>
+        <div class="chart-row-value">${formatMoney(s.value)}</div>
+      </div>`).join('')
+    : '<div class="empty-stage">No fee data yet</div>';
+}
+
 // ── CLIENT PANEL ──
 function openClient(c) {
   currentClient = c;
@@ -641,12 +749,21 @@ function openClient(c) {
     return `<span class="stage-pill ${cls}" style="cursor:pointer" onclick="setClientStage('${c.id}','${s.id}')">${i < stageIdx ? '✓ ' : ''}${s.label}</span>`;
   }).join('');
 
-  // Info
-  document.getElementById('dp-info').innerHTML = [
+  // Info (Fee is editable — everything else stays read-only for now)
+  const infoRows = [
     ['Date', c.date], ['Venue', c.venue], ['Service', c.service || c.type],
     ['Guests', c.guests], ['Email', c.email], ['Phone', c.phone || c.mobile],
-    ['Fee', c.fee], ['Status', c.status]
+    ['Status', c.status]
   ].filter(([,v]) => v).map(([k,v]) => `<div class="info-item"><label>${k}</label><span>${v}</span></div>`).join('');
+
+  const feeRow = `<div class="info-item"><label>Fee</label>
+    <div class="editable-field">
+      <input type="text" id="fee-input" value="${(c.fee||'').replace(/"/g,'&quot;')}" placeholder="e.g. $2,500.00">
+      <button class="save-btn" onclick="saveFee('${c.id}')">Save</button>
+    </div>
+  </div>`;
+
+  document.getElementById('dp-info').innerHTML = feeRow + infoRows;
 
   // Action buttons based on stage
   const actions = getActionsForStage(c);
@@ -675,7 +792,28 @@ function getActionsForStage(c) {
   return all;
 }
 
-async function setClientStage(clientId, newStage) {
+async function saveFee(clientId) {
+  const c = clients.find(x => x.id === clientId);
+  if (!c) return;
+  const input = document.getElementById('fee-input');
+  const newFee = input.value.trim();
+  const previousFee = c.fee;
+  c.fee = newFee; // optimistic update
+
+  const success = await updateClientField(clientId, 'Total Fee', newFee);
+  if (!success) {
+    c.fee = previousFee;
+    input.value = previousFee;
+  } else {
+    const t = document.getElementById('toast');
+    t.textContent = 'Fee updated ✓';
+    t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); t.textContent = 'Copied ✓'; }, 2000);
+    renderDashboard(); // fee changes affect dashboard totals
+  }
+}
+
+
   const c = clients.find(x => x.id === clientId);
   if (!c || c.stage === newStage) return;
 
