@@ -813,7 +813,7 @@ async function saveFee(clientId) {
   }
 }
 
-
+async function setClientStage(clientId, newStage) {
   const c = clients.find(x => x.id === clientId);
   if (!c || c.stage === newStage) return;
 
