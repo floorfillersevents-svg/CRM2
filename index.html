@@ -107,6 +107,7 @@
   .type-wedding { background: rgba(91,143,212,0.18); color: var(--blue); }
   .type-corporate { background: rgba(76,175,125,0.18); color: var(--green); }
   .type-milestone { background: rgba(232,160,32,0.18); color: var(--amber); }
+  .card-stage-select { margin-top: 8px; width: 100%; background: var(--mid); border: 1px solid var(--gold-border); border-radius: 5px; color: var(--offwhite); font-size: 0.68rem; padding: 4px 6px; cursor: pointer; }
 
   /* ─── CLIENT DETAIL PANEL ─── */
   .detail-panel {
@@ -283,8 +284,10 @@
   .cal-day.today { border-color: var(--gold); }
   .cal-day-num { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
   .cal-day.today .cal-day-num { color: var(--gold); }
-  .cal-event { background: var(--gold-dim); border: 1px solid var(--gold-border); border-radius: 4px; padding: 3px 6px; font-size: 0.68rem; color: var(--offwhite); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cal-event:hover { background: rgba(201,168,76,0.22); }
+  .cal-event { background: var(--gold-dim); border: 1px solid var(--gold-border); border-radius: 4px; padding: 3px 6px; font-size: 0.68rem; color: var(--offwhite); display: flex; flex-direction: column; gap: 2px; }
+  .cal-event-name { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .cal-event-name:hover { color: var(--gold); }
+  .cal-event-select { background: var(--mid); border: 1px solid var(--gold-border); border-radius: 3px; color: var(--offwhite); font-size: 0.6rem; padding: 1px 2px; width: 100%; }
   @media (max-width: 700px) {
     .cal-day { min-height: 60px; font-size: 0.7rem; }
     .cal-event { font-size: 0.6rem; }
@@ -558,6 +561,7 @@ const PIPELINE_STAGES = [
   { id: 'balance',      label: 'Balance Due' },
   { id: 'delivered',    label: 'Delivered' },
   { id: 'review',       label: 'Review / Follow-up' },
+  { id: 'lost',         label: 'Lost' },
 ];
 
 // ── API CALL ──
@@ -629,7 +633,7 @@ function parseClients(rows) {
     email: r['Email'] || '',
     phone: r['Phone'] || '',
     notes: r['Notes'] || ''
-  })).filter(c => c.stage !== 'lost'); // lost clients don't clutter the board
+  }));
 }
 
 // ── UPDATE A CLIENT FIELD (writes back to the sheet) ──
@@ -672,6 +676,9 @@ function renderPipeline() {
             <div class="card-name">${c.name}</div>
             <div class="card-meta">${c.date || '—'}<br>${c.venue || ''}</div>
             <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || c.service || 'Enquiry'}</span>
+            <select class="card-stage-select" onchange="setClientStage('${c.id}', this.value)" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()">
+              ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${s.id === c.stage ? 'selected' : ''}>${s.label}</option>`).join('')}
+            </select>
           </div>`).join('')}
       </div>`;
     container.appendChild(col);
@@ -789,7 +796,13 @@ function renderCalendar() {
     const dayEvents = eventsByDay[day] || [];
     cells += `<div class="cal-day ${isToday ? 'today' : ''}">
       <div class="cal-day-num">${day}</div>
-      ${dayEvents.map(c => `<div class="cal-event" onclick="openClientById('${c.id}')">${c.name}</div>`).join('')}
+      ${dayEvents.map(c => `
+        <div class="cal-event">
+          <span class="cal-event-name" onclick="openClientById('${c.id}')">${c.name}</span>
+          <select class="cal-event-select" onchange="setClientStage('${c.id}', this.value)" onclick="event.stopPropagation()">
+            ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${s.id === c.stage ? 'selected' : ''}>${s.label}</option>`).join('')}
+          </select>
+        </div>`).join('')}
     </div>`;
   }
 
@@ -855,11 +868,16 @@ function openClient(c) {
   document.getElementById('dp-event').textContent = [c.type || c.service || '', c.date, c.venue].filter(Boolean).join(' · ');
 
   // Stage pills — click any pill to move the client to that stage (writes back to the sheet)
-  const stageIdx = PIPELINE_STAGES.findIndex(s => s.id === c.stage);
-  document.getElementById('dp-stages').innerHTML = PIPELINE_STAGES.map((s, i) => {
+  // "Lost" is excluded from the sequential progress bar (it's a dead-end, not a step),
+  // but still shown as its own pill so you can mark/unmark a client as lost.
+  const sequentialStages = PIPELINE_STAGES.filter(s => s.id !== 'lost');
+  const stageIdx = sequentialStages.findIndex(s => s.id === c.stage);
+  const progressPills = sequentialStages.map((s, i) => {
     const cls = i < stageIdx ? 'done' : i === stageIdx ? 'current' : 'pending';
     return `<span class="stage-pill ${cls}" style="cursor:pointer" onclick="setClientStage('${c.id}','${s.id}')">${i < stageIdx ? '✓ ' : ''}${s.label}</span>`;
   }).join('');
+  const lostPill = `<span class="stage-pill ${c.stage === 'lost' ? 'current' : 'pending'}" style="cursor:pointer;border-color:var(--red)" onclick="setClientStage('${c.id}','lost')">${c.stage === 'lost' ? '✕ Lost' : 'Mark Lost'}</span>`;
+  document.getElementById('dp-stages').innerHTML = progressPills + lostPill;
 
   // Info (Fee is editable — everything else stays read-only for now)
   const infoRows = [
