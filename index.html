@@ -606,9 +606,15 @@ function parseDiscovery(rows) {
 
 // ── RENDER PIPELINE ──
 function renderPipeline() {
-  // Merge enquiries + bookings
+  // Merge enquiries + bookings — but drop any enquiry whose name already
+  // appears in the Booking Tracker, so booked clients don't also show a
+  // stale duplicate card stuck on "New Enquiry".
+  const normalize = s => (s || '').toLowerCase().trim();
+  const bookedNames = new Set(bookings.map(b => normalize(b.name)));
+  const freshEnquiries = enquiries.filter(e => !bookedNames.has(normalize(e.name)));
+
   const allClients = [
-    ...enquiries.map(e => ({ ...e, source: 'enquiry' })),
+    ...freshEnquiries.map(e => ({ ...e, source: 'enquiry' })),
     ...bookings
   ];
 
