@@ -468,13 +468,9 @@
 
 <script>
 // ── DATA ──
-const ENQUIRY_SHEET_ID = '16cgzGEuUXX78zXMY0XzUmF5eEA52Vqje6xGnEPJgyHk';
-const BOOKING_TRACKER_ID = '1SuxdIG_eZTtSUsBhoKqccIriXmBs1T40';
-const DISCOVERY_SHEET_ID = '1I1XSBWoxK3WfC4pSc43ouXGbfNK7SypKYXoeaII_m9Q';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-Aa-__YxyvCpFYgfKEnCPjxXsX4raokadvdZkI1DQUFOjliJU3Cyhj9kyyXuvbmqP2w/exec';
 
-let enquiries = [];
-let bookings = [];
-let discoveryResponses = [];
+let clients = [];
 let currentClient = null;
 
 const PIPELINE_STAGES = [
@@ -505,20 +501,22 @@ async function callClaude(prompt) {
   return d.content?.map(c => c.text || '').join('') || 'Error — please try again.';
 }
 
-// ── LOAD DATA FROM GOOGLE DRIVE ──
+// ── LOAD DATA FROM APPS SCRIPT ──
 async function loadAllData() {
   document.getElementById('syncIcon').textContent = '↻';
   document.getElementById('syncStatus').textContent = 'Syncing…';
 
-  const results = await Promise.allSettled([
-    loadSheet(ENQUIRY_SHEET_ID),
-    loadSheet(BOOKING_TRACKER_ID),
-    loadSheet(DISCOVERY_SHEET_ID)
-  ]);
-
-  if (results[0].status === 'fulfilled') parseEnquiries(results[0].value);
-  if (results[1].status === 'fulfilled') parseBookings(results[1].value);
-  if (results[2].status === 'fulfilled') parseDiscovery(results[2].value);
+  try {
+    const r = await fetch(APPS_SCRIPT_URL);
+    if (!r.ok) throw new Error(`Backend fetch failed: ${r.status}`);
+    const json = await r.json();
+    if (!json.ok) throw new Error(json.error || 'Unknown backend error');
+    parseClients(json.data);
+  } catch (err) {
+    console.error('Failed to load clients:', err);
+    document.getElementById('syncStatus').textContent = 'Sync failed — see console';
+    return;
+  }
 
   renderPipeline();
   renderEnquiriesTable();
@@ -528,113 +526,65 @@ async function loadAllData() {
   setTimeout(() => document.getElementById('syncIcon').textContent = '⟳', 2000);
 }
 
-async function loadSheet(fileId) {
-  // Pulls the sheet's CSV export directly — no API key or auth needed,
-  // as long as the sheet is shared "Anyone with the link can view".
-  const url = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`;
+function parseClients(rows) {
+  clients = rows.filter(r => r['Client ID'] && r['Name']).map(r => ({
+    id: r['Client ID'],
+    name: r['Name'],
+    stage: (r['Stage'] || 'enquiry').trim(),
+    type: r['Event Type'] || '',
+    date: r['Event Date'] || '',
+    venue: r['Venue'] || '',
+    guests: r['Guest Count'] || '',
+    service: r['Service'] || '',
+    dj: r['DJ'] || '',
+    mc: r['MC'] || '',
+    fee: r['Total Fee'] || '',
+    deposit: r['Deposit'] || '',
+    balance: r['Balance'] || '',
+    status: r['Status'] || '',
+    email: r['Email'] || '',
+    phone: r['Phone'] || '',
+    notes: r['Notes'] || ''
+  })).filter(c => c.stage !== 'lost'); // lost clients don't clutter the board
+}
+
+// ── UPDATE A CLIENT FIELD (writes back to the sheet) ──
+async function updateClientField(clientId, field, value) {
   try {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`Sheet fetch failed: ${r.status}`);
-    const csvText = await r.text();
-    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-    return parsed.data;
+    const r = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight on Apps Script
+      body: JSON.stringify({ clientId, field, value })
+    });
+    const json = await r.json();
+    if (!json.ok) throw new Error(json.error || 'Update failed');
+    return true;
   } catch (err) {
-    console.error(`Failed to load sheet ${fileId}:`, err);
-    return [];
+    console.error('Failed to update client:', err);
+    alert('Could not save that change — check your connection and try again.');
+    return false;
   }
-}
-
-function parseEnquiries(rows) {
-  enquiries = rows.filter(r => r['First Name & Partners Name\n(If applicable)'] || r['Email Address']).map(r => ({
-    name: r['First Name & Partners Name\n(If applicable)'] || r['First Name & Partners Name (If applicable)'] || '—',
-    email: r['Email Address'] || '',
-    phone: r['Contact Number'] || '',
-    date: r['Event Date (DD/MM/YYYY)'] || '',
-    venue: r['Venue Name'] || '',
-    guests: r['Number of Guests'] || '',
-    time: r['Event Start & End Time'] || '',
-    source: r['How did you hear about us?'] || '',
-    notes: r["Is there anything else you'd like us to know?"] || '',
-    timestamp: r['Timestamp'] || '',
-    stage: 'enquiry'
-  }));
-}
-
-function parseBookings(rows) {
-  bookings = rows.filter(r => r['Client Name(s)'] && r['Event Date']).map(r => {
-    // Map booking tracker columns to pipeline stage
-    let stage = 'enquiry';
-    if (r['Quote / Info Pack Issued'] === 'Yes') stage = 'quote';
-    if (r['Terms of Service & Invoice Issued'] === 'Yes') stage = 'terms';
-    if (r['Deposit Paid'] === 'Yes' || r['Deposit Received']) stage = 'planning';
-    if (r['Discovery Questions Sent'] === 'Sent' || r['Discovery Questions Sent'] === 'Yes') stage = 'planning';
-    if (r['Final Meeting Booked'] === 'Yes') stage = 'finalmeeting';
-    if (r['Balance Paid'] === 'Yes' || r['Balance Paid 1'] === 'Yes') stage = 'balance';
-    if (r['Status'] === 'Confirmed' && (r['Balance Paid'] === 'Yes' || r['Balance Paid 1'] === 'Yes')) stage = 'delivered';
-    if (r['Status'] === 'Lost') stage = null;
-
-    return {
-      name: r['Client Name(s)'],
-      date: r['Event Date'],
-      venue: r['Venue'] || r['Venue Name'] || '',
-      type: r['Event Type'] || '',
-      service: r['Service Booked'] || r['Services Required'] || '',
-      dj: r['DJ Assigned'] || '',
-      mc: r['MC Assinged'] || r['MC Assigned'] || '',
-      fee: r['Total Fee ($)'] || '',
-      deposit: r['Deposit Received'] || '',
-      balance: r['Balance '] || '',
-      status: r['Status'] || '',
-      notes: r['Notes'] || '',
-      stage,
-      source: 'booking'
-    };
-  }).filter(b => b.stage !== null);
-}
-
-function parseDiscovery(rows) {
-  discoveryResponses = rows.filter(r => r['Timestamp']).map(r => ({
-    name: r["Let's start with an easy one - Please provide your names below :) "] || '',
-    musicVibe: r['What kind of music vibe are you envisioning for your dancefloor? (select as many that apply)'] || '',
-    mustPlay: r['Do you have a list of must-play songs you can share?'] || '',
-    dontPlay: r['What about do-not-play songs or artists?'] || '',
-    firstDance: r['What is your first dance song (if applicable)'] || '',
-    atmosphere: r['What kind of atmosphere are you envisioning (e.g. sentimental, fun, energetic, classy)?'] || '',
-    timestamp: r['Timestamp'] || ''
-  }));
 }
 
 // ── RENDER PIPELINE ──
 function renderPipeline() {
-  // Merge enquiries + bookings — but drop any enquiry whose name already
-  // appears in the Booking Tracker, so booked clients don't also show a
-  // stale duplicate card stuck on "New Enquiry".
-  const normalize = s => (s || '').toLowerCase().trim();
-  const bookedNames = new Set(bookings.map(b => normalize(b.name)));
-  const freshEnquiries = enquiries.filter(e => !bookedNames.has(normalize(e.name)));
-
-  const allClients = [
-    ...freshEnquiries.map(e => ({ ...e, source: 'enquiry' })),
-    ...bookings
-  ];
-
-  document.getElementById('pipelineCount').textContent = `${allClients.length} active clients`;
+  document.getElementById('pipelineCount').textContent = `${clients.length} active clients`;
 
   const container = document.getElementById('stagesContainer');
   container.innerHTML = '';
 
   PIPELINE_STAGES.forEach(stage => {
-    const clients = allClients.filter(c => c.stage === stage.id);
+    const stageClients = clients.filter(c => c.stage === stage.id);
     const col = document.createElement('div');
     col.className = 'stage-col';
     col.innerHTML = `
       <div class="stage-header">
         <span class="stage-name">${stage.label}</span>
-        <span class="stage-badge">${clients.length}</span>
+        <span class="stage-badge">${stageClients.length}</span>
       </div>
       <div class="stage-cards">
-        ${clients.length === 0 ? '<div class="empty-stage">No clients</div>' : clients.map(c => `
-          <div class="lead-card" onclick="openClient(${JSON.stringify(c).replace(/"/g, '&quot;')})">
+        ${stageClients.length === 0 ? '<div class="empty-stage">No clients</div>' : stageClients.map(c => `
+          <div class="lead-card" onclick="openClientById('${c.id}')">
             <div class="card-name">${c.name}</div>
             <div class="card-meta">${c.date || '—'}<br>${c.venue || ''}</div>
             <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || c.service || 'Enquiry'}</span>
@@ -644,29 +594,30 @@ function renderPipeline() {
   });
 }
 
+function openClientById(id) {
+  const c = clients.find(x => x.id === id);
+  if (c) openClient(c);
+}
+
 // ── RENDER ENQUIRIES TABLE ──
+// Shows clients still sitting at the "New Enquiry" stage.
 function renderEnquiriesTable() {
   const tbody = document.getElementById('enquiriesTable');
-  if (!enquiries.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:20px">No enquiries found.</td></tr>';
+  const newEnquiries = clients.filter(c => c.stage === 'enquiry');
+  if (!newEnquiries.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:20px">No new enquiries.</td></tr>';
     return;
   }
-  tbody.innerHTML = enquiries.map(e => `
-    <tr onclick="openClient(${JSON.stringify(e).replace(/"/g, '&quot;')})">
-      <td><strong>${e.name}</strong>${isNew(e.timestamp) ? '<span class="new-badge">New</span>' : ''}<br><span style="font-size:0.75rem;color:var(--muted)">${e.email}</span></td>
+  tbody.innerHTML = newEnquiries.map(e => `
+    <tr onclick="openClientById('${e.id}')">
+      <td><strong>${e.name}</strong><br><span style="font-size:0.75rem;color:var(--muted)">${e.email}</span></td>
       <td>${e.date}</td>
       <td>${e.venue}</td>
       <td>${e.guests}</td>
-      <td>${e.source}</td>
+      <td>${e.type}</td>
       <td style="max-width:180px;font-size:0.78rem;color:var(--muted)">${(e.notes||'').slice(0,80)}${(e.notes||'').length>80?'…':''}</td>
-      <td><button class="copy-btn" onclick="event.stopPropagation();quickReply(${JSON.stringify(e).replace(/"/g, '&quot;')})">Reply</button></td>
+      <td><button class="copy-btn" onclick="event.stopPropagation();quickReply('${e.id}')">Reply</button></td>
     </tr>`).join('');
-}
-
-function isNew(ts) {
-  if (!ts) return false;
-  const d = new Date(ts);
-  return (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
 }
 
 // ── CLIENT PANEL ──
@@ -675,11 +626,11 @@ function openClient(c) {
   document.getElementById('dp-name').textContent = c.name;
   document.getElementById('dp-event').textContent = [c.type || c.service || '', c.date, c.venue].filter(Boolean).join(' · ');
 
-  // Stage pills
+  // Stage pills — click any pill to move the client to that stage (writes back to the sheet)
   const stageIdx = PIPELINE_STAGES.findIndex(s => s.id === c.stage);
   document.getElementById('dp-stages').innerHTML = PIPELINE_STAGES.map((s, i) => {
     const cls = i < stageIdx ? 'done' : i === stageIdx ? 'current' : 'pending';
-    return `<span class="stage-pill ${cls}">${i < stageIdx ? '✓ ' : ''}${s.label}</span>`;
+    return `<span class="stage-pill ${cls}" style="cursor:pointer" onclick="setClientStage('${c.id}','${s.id}')">${i < stageIdx ? '✓ ' : ''}${s.label}</span>`;
   }).join('');
 
   // Info
@@ -714,6 +665,30 @@ function getActionsForStage(c) {
   ];
   // Always show all — smart people know which is relevant
   return all;
+}
+
+async function setClientStage(clientId, newStage) {
+  const c = clients.find(x => x.id === clientId);
+  if (!c || c.stage === newStage) return;
+
+  const previousStage = c.stage;
+  c.stage = newStage; // optimistic update
+  openClient(c);
+  renderPipeline();
+  renderEnquiriesTable();
+
+  const success = await updateClientField(clientId, 'Stage', newStage);
+  if (!success) {
+    c.stage = previousStage; // roll back on failure
+    openClient(c);
+    renderPipeline();
+    renderEnquiriesTable();
+  } else {
+    const t = document.getElementById('toast');
+    t.textContent = 'Stage updated ✓';
+    t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); t.textContent = 'Copied ✓'; }, 2000);
+  }
 }
 
 function closePanel() {
@@ -751,7 +726,9 @@ async function triggerAction(actionId) {
   document.getElementById('dp-out-text').textContent = text;
 }
 
-async function quickReply(e) {
+async function quickReply(clientId) {
+  const e = clients.find(x => x.id === clientId);
+  if (!e) return;
   currentClient = e;
   showTab('tools', document.querySelector('.tab:nth-child(3)'));
   showTool('enquiry-reply', document.querySelector('.tool-nav-item'));
@@ -759,7 +736,7 @@ async function quickReply(e) {
   document.getElementById('er-date').value = e.date || '';
   document.getElementById('er-venue').value = e.venue || '';
   document.getElementById('er-guests').value = e.guests || '';
-  document.getElementById('er-source').value = e.source || '';
+  document.getElementById('er-source').value = e.type || '';
   document.getElementById('er-msg').value = e.notes || '';
 }
 
