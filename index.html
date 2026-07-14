@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Floor Fillers — CRM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
 
@@ -106,6 +107,7 @@
   .type-wedding { background: rgba(91,143,212,0.18); color: var(--blue); }
   .type-corporate { background: rgba(76,175,125,0.18); color: var(--green); }
   .type-milestone { background: rgba(232,160,32,0.18); color: var(--amber); }
+  .card-stage-select { margin-top: 8px; width: 100%; background: var(--mid); border: 1px solid var(--gold-border); border-radius: 5px; color: var(--offwhite); font-size: 0.68rem; padding: 4px 6px; cursor: pointer; }
 
   /* ─── CLIENT DETAIL PANEL ─── */
   .detail-panel {
@@ -254,12 +256,102 @@
   .overlay.show { display: block; }
 
   .empty-stage { color: var(--muted); font-size: 0.78rem; font-style: italic; padding: 8px 4px; }
+
+  /* DASHBOARD */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  .anniversary-banner { background: var(--gold-dim); border: 1px solid var(--gold-border); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+  .anniversary-banner .icon { font-size: 1.3rem; }
+  .anniversary-banner .text { font-size: 0.85rem; }
+  .anniversary-banner .names { color: var(--gold); font-weight: 600; }
+  .metric-card { background: var(--card); border: 1px solid var(--gold-border); border-radius: 10px; padding: 18px 20px; }
+  .metric-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+  .metric-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--offwhite); }
+  .metric-value.gold { color: var(--gold); }
+  .chart-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .chart-row { display: grid; grid-template-columns: 90px 1fr 90px; align-items: center; gap: 12px; }
+  .chart-row-label { font-size: 0.78rem; color: var(--muted); }
+  .chart-bar-bg { background: rgba(255,255,255,0.04); border-radius: 4px; height: 20px; overflow: hidden; }
+  .chart-bar-fill { background: linear-gradient(90deg, var(--gold), #e8c876); height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+  .chart-row-value { font-size: 0.78rem; color: var(--offwhite); text-align: right; }
+
+  /* EDITABLE FEE FIELD */
+  .editable-field { display: flex; align-items: center; gap: 6px; }
+  .editable-field input { padding: 5px 8px; font-size: 0.85rem; width: 110px; }
+  .editable-field .save-btn { background: var(--gold); color: var(--black); border: none; border-radius: 4px; font-size: 0.68rem; font-weight: 700; padding: 5px 10px; cursor: pointer; }
+  .editable-field .save-btn:hover { background: #d9b85c; }
+
+  /* CALENDAR */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px; }
+  .cal-weekday { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 4px 0; }
+  .cal-day { background: var(--card); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; min-height: 92px; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .cal-day.empty { background: transparent; border: none; }
+  .cal-day.today { border-color: var(--gold); }
+  .cal-day-num { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .cal-day.today .cal-day-num { color: var(--gold); }
+  .cal-event { background: var(--gold-dim); border: 1px solid var(--gold-border); border-radius: 4px; padding: 3px 6px; font-size: 0.68rem; color: var(--offwhite); display: flex; flex-direction: column; gap: 2px; }
+  .cal-event-name { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .cal-event-name:hover { color: var(--gold); }
+  .cal-event-select { background: var(--mid); border: 1px solid var(--gold-border); border-radius: 3px; color: var(--offwhite); font-size: 0.6rem; padding: 1px 2px; width: 100%; }
+  @media (max-width: 700px) {
+    .cal-day { min-height: 60px; font-size: 0.7rem; }
+    .cal-event { font-size: 0.6rem; }
+  }
+
+  /* ─── MOBILE OPTIMISATION ─── */
+  @media (max-width: 640px) {
+    /* Detail panel was fixed at 480px — overflowed every phone screen */
+    .detail-panel { width: 100vw; }
+
+    /* iOS Safari auto-zooms on any input/select with font-size under 16px.
+       Bumping these to 16px stops the page jumping/zooming every time you
+       tap a field. */
+    input, select, textarea, .card-stage-select, .cal-event-select { font-size: 16px; }
+
+    header { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+    .logo img { height: 36px !important; }
+    .header-right { gap: 8px; }
+    .sync-status { display: none; } /* redundant with the sync icon on small screens */
+
+    /* Tabs: scroll horizontally instead of squeezing/wrapping awkwardly */
+    .tabs { padding: 0 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab { padding: 12px 12px; font-size: 0.78rem; white-space: nowrap; flex-shrink: 0; }
+
+    .view { padding: 16px; }
+    .pipeline-title, .cal-day-num, .metric-value { font-size: 1.15rem; }
+
+    /* Tools: side nav becomes a horizontal scroll strip instead of a
+       cramped 200px column eating half the screen */
+    .tools-grid { grid-template-columns: 1fr; }
+    .tools-nav {
+      display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      border-right: none; border-bottom: 1px solid var(--gold-border);
+      padding: 10px 0;
+    }
+    .tool-nav-item {
+      flex-shrink: 0; border-left: none; border-bottom: 2px solid transparent;
+      white-space: nowrap;
+    }
+    .tool-nav-item.active { border-left: none; border-bottom-color: var(--gold); }
+    .tool-panel { padding: 16px; }
+
+    .action-grid { grid-template-columns: 1fr; } /* single column, easier to tap */
+    .fg, .fg.trio { grid-template-columns: 1fr; } /* stack form fields */
+
+    .metric-grid { grid-template-columns: repeat(2, 1fr); }
+    .chart-row { grid-template-columns: 70px 1fr 60px; gap: 8px; }
+    .chart-row-label { font-size: 0.7rem; }
+
+    .stage-col { width: 210px; } /* slightly narrower so ~1.5 columns peek on screen */
+
+    /* Bigger tap targets throughout */
+    .gen-btn, .action-btn, .copy-btn, .sync-btn { min-height: 40px; }
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">Floor Fillers <span>Events</span></div>
+  <div class="logo"><img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTA4MCIgaGVpZ2h0PSI1NTAiIHZpZXdCb3g9IjAgMCAxMDgwIDU1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTUuNjA5NzMgMTk2Ljc2QzMuMjU3MyAxOTUuMzEyIDIuODk1MzkgMTkxLjMzMSA1LjYwOTczIDE5MS4zMzFINzguMzUzOEM5NC42Mzk4IDE5MS4zMzEgMTAxLjUxNiAyMDIuMzY5IDEwMS41MTYgMjE1LjAzNkMxMDEuNTE2IDIyMS4wMDggMTAwLjA2OCAyMzAuOTYgOTEuNTYzNiAyMzAuOTZDODMuOTYzNCAyMzAuOTYgODEuNDMwMSAyMjQuNjI3IDc5LjI1ODYgMjE4LjY1NUM3NC45MTU3IDIwNy4wNzQgNzIuMzgyMyAxOTYuNzYgNTguODEwNiAxOTYuNzZDNDQuODc3MSAxOTYuOTQxIDQzLjk3MjMgMjI0LjA4NCA0My45NzIzIDI0Ny4yNDZDNTEuMDI5NiAyNDUuNDM3IDU1LjczNDQgMjQxLjI3NSA1OC4yNjc4IDIzNi4zODlDNjAuNjIwMiAyMzEuNjg0IDYzLjMzNDUgMjI5LjUxMyA2NS4zMjUgMjI5LjUxM0M2Ny40OTY1IDIyOS41MTMgNjkuMTI1MSAyMzEuODY1IDY5LjEyNTEgMjM2LjM4OVYyNjUuODg1QzY5LjEyNTEgMjcwLjQwOSA2Ny40OTY1IDI3Mi41OCA2NS4zMjUgMjcyLjU4QzYzLjMzNDUgMjcyLjU4IDYwLjYyMDIgMjcwLjQwOSA1OC4yNjc4IDI2NS44ODVDNTUuNzM0NCAyNjAuOTk5IDUxLjAyOTYgMjU2LjgzNyA0My45NzIzIDI1NS4wMjdDNDMuOTcyMyAyNzkuMjc2IDQzLjQyOTQgMzEyLjU3MSA1OC44MTA2IDMxMi41NzFDNjEuNTI1IDMxMi41NzEgNjEuNTI1IDMxOCA1OC44MTA2IDMxOEg1LjYwOTczQzIuODk1MzkgMzE4IDMuMjU3MyAzMTQuMDE5IDUuNjA5NzMgMzEyLjU3MUMxMy41NzE4IDMwNy44NjYgMTMuMjA5OSAyNzkuMDk1IDEzLjIwOTkgMjU0LjY2NkMxMy4yMDk5IDIzMC4yMzcgMTMuOTMzNyAyMDEuNjQ2IDUuNjA5NzMgMTk2Ljc2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTEwOS44OTIgMzE4QzEwNy4xNzggMzE4IDEwNy41NCAzMTQuMDE5IDEwOS44OTIgMzEyLjU3MUMxMTcuMzEyIDMwOC4wNDcgMTE3LjQ5MyAyOTUuMzgxIDExNy40OTMgMjg1LjQyOFYyMjQuOTg5QzExNy40OTMgMjE0LjEzMiAxMTYuNDA3IDIwMS42NDYgMTA5Ljg5MiAxOTcuODQ2QzEwNy41NCAxOTYuMzk4IDEwNy4xNzggMTkyLjc3OSAxMDkuODkyIDE5Mi40MTdMMTQzLjE4OCAxODguMjU1QzE0Ni4yNjQgMTg3Ljg5MyAxNDguMjU1IDE4OS43MDMgMTQ4LjI1NSAxOTIuNzc5VjI3Ni4xOTlDMTQ4LjI1NSAyODQuMzQyIDE0Ny4zNSAzMDcuNTA1IDE1NS44NTUgMzEyLjU3MUMxNTguMjA4IDMxNC4wMTkgMTU4LjU2OSAzMTggMTU1Ljg1NSAzMThIMTA5Ljg5MloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yMTMuMTExIDMyMS42MTlDMTg2LjMyOSAzMjEuNjE5IDE2NC4yNTMgMjk5LjM2MiAxNjQuMjUzIDI3Mi43NjFDMTY0LjI1MyAyNDUuOTggMTg2LjMyOSAyMjQuMDg0IDIxMy4xMTEgMjI0LjA4NEMyMzkuNzExIDIyNC4wODQgMjYxLjc4OCAyNDUuOTggMjYxLjc4OCAyNzIuNzYxQzI2MS43ODggMjk5LjM2MiAyMzkuODkyIDMyMS42MTkgMjEzLjExMSAzMjEuNjE5Wk0xOTQuMjkxIDIzMy42NzVDMTgzLjA3MiAyMzkuMTAzIDE4Ny4yMzQgMjYwLjI3NSAxOTYuNjQ0IDI4MC41NDJDMjA1LjE0OCAyOTguMDk1IDIxNi43MyAzMTIuOTMzIDIyNy4yMjUgMzEyLjkzM0MyMjguODU0IDMxMi45MzMgMjMwLjQ4MiAzMTIuNTcxIDIzMS45MyAzMTEuODQ3QzI0My4xNDkgMzA2LjQxOSAyMzguODA2IDI4NS4wNjYgMjI5LjIxNiAyNjQuOThDMjIwLjg5MiAyNDcuNDI3IDIwOS4zMSAyMzIuNTg5IDE5OC45OTYgMjMyLjU4OUMxOTcuMzY3IDIzMi41ODkgMTk1LjczOSAyMzIuOTUxIDE5NC4yOTEgMjMzLjY3NVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0zMTcuOTAyIDMyMS42MTlDMjkxLjEyMSAzMjEuNjE5IDI2OS4wNDQgMjk5LjM2MiAyNjkuMDQ0IDI3Mi43NjFDMjY5LjA0NCAyNDUuOTggMjkxLjEyMSAyMjQuMDg0IDMxNy45MDIgMjI0LjA4NEMzNDQuNTAzIDIyNC4wODQgMzY2LjU3OSAyNDUuOTggMzY2LjU3OSAyNzIuNzYxQzM2Ni41NzkgMjk5LjM2MiAzNDQuNjg0IDMyMS42MTkgMzE3LjkwMiAzMjEuNjE5Wk0yOTkuMDgzIDIzMy42NzVDMjg3Ljg2NCAyMzkuMTAzIDI5Mi4wMjUgMjYwLjI3NSAzMDEuNDM1IDI4MC41NDJDMzA5Ljk0IDI5OC4wOTUgMzIxLjUyMSAzMTIuOTMzIDMzMi4wMTcgMzEyLjkzM0MzMzMuNjQ1IDMxMi45MzMgMzM1LjI3NCAzMTIuNTcxIDMzNi43MjEgMzExLjg0N0MzNDcuOTQxIDMwNi40MTkgMzQzLjU5OCAyODUuMDY2IDMzNC4wMDcgMjY0Ljk4QzMyNS42ODMgMjQ3LjQyNyAzMTQuMTAyIDIzMi41ODkgMzAzLjc4OCAyMzIuNTg5QzMwMi4xNTkgMjMyLjU4OSAzMDAuNTMgMjMyLjk1MSAyOTkuMDgzIDIzMy42NzVaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMzczLjU1IDIzMi43N0MzNzEuMTk4IDIzMS4zMjIgMzcwLjgzNiAyMjcuNTIyIDM3My41NSAyMjcuMzQxTDQwNi42NjUgMjI0LjQ0NkM0MDkuNzQxIDIyNC4yNjUgNDExLjkxMyAyMjYuMjU2IDQxMS45MTMgMjI5LjMzMlYyNDUuOThDNDE3LjcwMyAyMzIuMDQ2IDQzMC45MTMgMjI0LjA4NCA0NDUuOTMyIDIyNC4wODRDNDc0Ljg4NSAyMjQuMDg0IDQ3MC43MjMgMjU0LjMwNCA0NTEuNzIzIDI1NC4zMDRDNDM4LjE1MSAyNTQuMzA0IDQzOC44NzUgMjM2Ljc1MSA0MjkuMjg0IDIzNi43NTFDNDE3LjUyMiAyMzYuNzUxIDQxMi4wOTQgMjYyLjQ0NyA0MTEuOTEzIDI2NC4yNTZWMjY4Ljk2MUM0MTEuOTEzIDI4NC4zNDIgNDExLjAwOCAzMDcuNTA1IDQxOS41MTMgMzEyLjU3MUM0MjEuODY1IDMxNC4wMTkgNDIyLjIyNyAzMTggNDE5LjUxMyAzMThIMzczLjU1QzM3MC44MzYgMzE4IDM3MS4xOTggMzE0LjAxOSAzNzMuNTUgMzEyLjU3MUMzODAuOTY5IDMwOC4wNDcgMzgxLjE1IDI5MS45NDIgMzgxLjE1IDI4Mi43MTRWMjU4LjEwNEMzODEuMTUgMjQ4LjY5NCAzODAuNjA3IDIzNi45MzIgMzczLjU1IDIzMi43N1oiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik00NzQuNjEgMTk2Ljc2QzQ3Mi4yNTcgMTk1LjMxMiA0NzEuODk1IDE5MS4zMzEgNDc0LjYxIDE5MS4zMzFINTQ3LjM1NEM1NjMuNjQgMTkxLjMzMSA1NzAuNTE2IDIwMi4zNjkgNTcwLjUxNiAyMTUuMDM2QzU3MC41MTYgMjIxLjAwOCA1NjkuMDY5IDIzMC45NiA1NjAuNTY0IDIzMC45NkM1NTIuOTYzIDIzMC45NiA1NTAuNDMgMjI0LjYyNyA1NDguMjU5IDIxOC42NTVDNTQzLjkxNiAyMDcuMDc0IDU0MS4zODIgMTk2Ljc2IDUyNy44MTEgMTk2Ljc2QzUxMy44NzcgMTk2Ljk0MSA1MTIuOTcyIDIyNC4wODQgNTEyLjk3MiAyNDcuMjQ2QzUyMC4wMyAyNDUuNDM3IDUyNC43MzQgMjQxLjI3NSA1MjcuMjY4IDIzNi4zODlDNTI5LjYyIDIzMS42ODQgNTMyLjMzNSAyMjkuNTEzIDUzNC4zMjUgMjI5LjUxM0M1MzYuNDk2IDIyOS41MTMgNTM4LjEyNSAyMzEuODY1IDUzOC4xMjUgMjM2LjM4OVYyNjUuODg1QzUzOC4xMjUgMjcwLjQwOSA1MzYuNDk2IDI3Mi41OCA1MzQuMzI1IDI3Mi41OEM1MzIuMzM1IDI3Mi41OCA1MjkuNjIgMjcwLjQwOSA1MjcuMjY4IDI2NS44ODVDNTI0LjczNCAyNjAuOTk5IDUyMC4wMyAyNTYuODM3IDUxMi45NzIgMjU1LjAyN0M1MTIuOTcyIDI3OS4yNzYgNTEyLjQyOSAzMTIuNTcxIDUyNy44MTEgMzEyLjU3MUM1MzAuNTI1IDMxMi41NzEgNTMwLjUyNSAzMTggNTI3LjgxMSAzMThINDc0LjYxQzQ3MS44OTUgMzE4IDQ3Mi4yNTcgMzE0LjAxOSA0NzQuNjEgMzEyLjU3MUM0ODIuNTcyIDMwNy44NjYgNDgyLjIxIDI3OS4wOTUgNDgyLjIxIDI1NC42NjZDNDgyLjIxIDIzMC4yMzcgNDgyLjkzNCAyMDEuNjQ2IDQ3NC42MSAxOTYuNzZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNNTc4Ljg5MiAzMThDNTc2LjE3OCAzMTggNTc2LjU0IDMxNC4wMTkgNTc4Ljg5MiAzMTIuNTcxQzU4Ni4zMTIgMzA4LjA0NyA1ODYuNDkyIDI5OSA1ODYuNDkyIDI4OS43NzFWMjUyLjMxM0M1ODYuNDkyIDI0My45ODkgNTg1Ljk1IDIzNy4yOTQgNTc4Ljg5MiAyMzIuOTUxQzU3Ni41NCAyMzEuNTAzIDU3Ni4xNzggMjI3LjcwMyA1NzguODkyIDIyNy41MjJMNjEyLjAwNyAyMjQuNjI3QzYxNS4wODQgMjI0LjI2NSA2MTcuMjU1IDIyNi4yNTYgNjE3LjI1NSAyMjkuMzMyVjI4OS45NTJDNjE3LjI1NSAyOTkgNjE2LjM1IDMwNy41MDUgNjI0Ljg1NSAzMTIuNTcxQzYyNy4yMDggMzE0LjAxOSA2MjcuNTY5IDMxOCA2MjQuODU1IDMxOEg1NzguODkyWk02MDEuODc0IDIxOS41NkM1OTMuMDA3IDIxOS41NiA1ODUuOTUgMjEyLjUwMyA1ODUuOTUgMjAzLjYzNkM1ODUuOTUgMTk0Ljc2OSA1OTMuMDA3IDE4Ny43MTIgNjAxLjg3NCAxODcuNzEyQzYxMC43NDEgMTg3LjcxMiA2MTcuNzk4IDE5NC43NjkgNjE3Ljc5OCAyMDMuNjM2QzYxNy43OTggMjEyLjUwMyA2MTAuNzQxIDIxOS41NiA2MDEuODc0IDIxOS41NloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik02MzcuOTE1IDMxOEM2MzUuMjAxIDMxOCA2MzUuNTYzIDMxNC4wMTkgNjM3LjkxNSAzMTIuNTcxQzY0NS4zMzQgMzA4LjA0NyA2NDUuNTE1IDI5NS4zODEgNjQ1LjUxNSAyODUuNDI4VjIyNC45ODlDNjQ1LjUxNSAyMTQuMTMyIDY0NC40MjkgMjAxLjY0NiA2MzcuOTE1IDE5Ny44NDZDNjM1LjU2MyAxOTYuMzk4IDYzNS4yMDEgMTkyLjc3OSA2MzcuOTE1IDE5Mi40MTdMNjcxLjIxMSAxODguMjU1QzY3NC4yODcgMTg3Ljg5MyA2NzYuMjc4IDE4OS43MDMgNjc2LjI3OCAxOTIuNzc5VjI3Ni4xOTlDNjc2LjI3OCAyODQuMzQyIDY3NS4zNzMgMzA3LjUwNSA2ODMuODc4IDMxMi41NzFDNjg2LjIzIDMxNC4wMTkgNjg2LjU5MiAzMTggNjgzLjg3OCAzMThINjM3LjkxNVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik02OTUuMTcgMzE4QzY5Mi40NTYgMzE4IDY5Mi44MTggMzE0LjAxOSA2OTUuMTcgMzEyLjU3MUM3MDIuNTkgMzA4LjA0NyA3MDIuNzcxIDI5NS4zODEgNzAyLjc3MSAyODUuNDI4VjIyNC45ODlDNzAyLjc3MSAyMTQuMTMyIDcwMS42ODUgMjAxLjY0NiA2OTUuMTcgMTk3Ljg0NkM2OTIuODE4IDE5Ni4zOTggNjkyLjQ1NiAxOTIuNzc5IDY5NS4xNyAxOTIuNDE3TDcyOC40NjYgMTg4LjI1NUM3MzEuNTQyIDE4Ny44OTMgNzMzLjUzMyAxODkuNzAzIDczMy41MzMgMTkyLjc3OVYyNzYuMTk5QzczMy41MzMgMjg0LjM0MiA3MzIuNjI4IDMwNy41MDUgNzQxLjEzMyAzMTIuNTcxQzc0My40ODYgMzE0LjAxOSA3NDMuODQ3IDMxOCA3NDEuMTMzIDMxOEg2OTUuMTdaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNNzk4LjU3IDMyMS42MTlDNzczLjU5OCAzMjEuNjE5IDc0OS41MzEgMzAxLjcxNCA3NDkuNTMxIDI3My4xMjNDNzQ5LjUzMSAyNDMuOTg5IDc3MS45NjkgMjI0LjA4NCA3OTUuODU1IDIyNC4wODRDODI2LjQzNyAyMjQuMDg0IDgzNy40NzUgMjQ5LjQxOCA4NDAuOTEzIDI2MS43MjNDODQyLjM2MSAyNjUuMTYxIDg0MC4wMDggMjY4LjIzNyA4MzUuNjY1IDI2OC4yMzdINzc2LjEzMUM3ODEuNTYgMjg2LjUxNCA3OTMuMTQxIDMwNi43ODEgODEwLjY5NCAzMDYuNzgxQzgyNC44MDggMzA2Ljc4MSA4MzIuNzcgMjk3LjAwOSA4MzUuMzAzIDI5My4yMDlDODM2LjM4OSAyOTEuNTggODM3LjY1NiAyOTAuODU3IDgzOC45MjMgMjkwLjg1N0M4NDAuOTEzIDI5MC44NTcgODQyLjE4IDI5Mi44NDcgODQwLjczMiAyOTYuMTA0QzgzNS44NDYgMzA2LjQxOSA4MjAuMTAzIDMyMS42MTkgNzk4LjU3IDMyMS42MTlaTTc3NC42ODMgMjYyLjgwOUg4MTYuNDg0QzgxMi42ODQgMjUyLjQ5NCA4MDMuMDkzIDIzMS4zMjIgNzg4LjA3NCAyMzEuMzIyQzc3OC42NjQgMjMxLjMyMiA3NzIuNjkzIDIzNy44MzcgNzcyLjY5MyAyNDcuNzg5Qzc3Mi42OTMgMjUxLjc3IDc3My40MTcgMjU3LjAxOCA3NzQuNjgzIDI2Mi44MDlaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNODUxLjM4NiAyMzIuNzdDODQ5LjAzMyAyMzEuMzIyIDg0OC42NzIgMjI3LjUyMiA4NTEuMzg2IDIyNy4zNDFMODg0LjUwMSAyMjQuNDQ2Qzg4Ny41NzcgMjI0LjI2NSA4ODkuNzQ4IDIyNi4yNTYgODg5Ljc0OCAyMjkuMzMyVjI0NS45OEM4OTUuNTM5IDIzMi4wNDYgOTA4Ljc0OSAyMjQuMDg0IDkyMy43NjggMjI0LjA4NEM5NTIuNzIxIDIyNC4wODQgOTQ4LjU1OSAyNTQuMzA0IDkyOS41NTkgMjU0LjMwNEM5MTUuOTg3IDI1NC4zMDQgOTE2LjcxMSAyMzYuNzUxIDkwNy4xMiAyMzYuNzUxQzg5NS4zNTggMjM2Ljc1MSA4ODkuOTI5IDI2Mi40NDcgODg5Ljc0OCAyNjQuMjU2VjI2OC45NjFDODg5Ljc0OCAyODQuMzQyIDg4OC44NDQgMzA3LjUwNSA4OTcuMzQ5IDMxMi41NzFDODk5LjcwMSAzMTQuMDE5IDkwMC4wNjMgMzE4IDg5Ny4zNDkgMzE4SDg1MS4zODZDODQ4LjY3MiAzMTggODQ5LjAzMyAzMTQuMDE5IDg1MS4zODYgMzEyLjU3MUM4NTguODA1IDMwOC4wNDcgODU4Ljk4NiAyOTEuOTQyIDg1OC45ODYgMjgyLjcxNFYyNTguMTA0Qzg1OC45ODYgMjQ4LjY5NCA4NTguNDQzIDIzNi45MzIgODUxLjM4NiAyMzIuNzdaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNOTQ2LjIwMSAzMDAuMDg1Qzk0NC4yMSAyOTAuNjc2IDk1MS45OTEgMjg0LjE2MSA5NTkuNzczIDI4NC4xNjFDOTY0LjQ3NyAyODQuMTYxIDk2OS4xODIgMjg2LjY5NSA5NzEuNTM1IDI5Mi4zMDRDOTc1Ljg3OCAzMDIuOTgxIDk4Ni4xOTIgMzE1LjgyOSA5OTYuMzI2IDMxNS44MjlDMTAwMi44NCAzMTUuODI5IDEwMDYuMSAzMTEuMzA1IDEwMDYuMSAzMDYuMjM4QzEwMDYuMSAyODQuMzQyIDk0OS44MiAyNzkuMjc2IDk0OS44MiAyNDkuOTYxQzk0OS44MiAyMzMuMTMyIDk2NS43NDQgMjI0LjA4NCA5OTQuODc4IDIyNC4wODRDMTAwOC4wOSAyMjQuMDg0IDEwMjYuMzYgMjI5LjMzMiAxMDMxLjI1IDI0MC43MzJDMTAzNS41OSAyNTAuNTA0IDEwMjguMTcgMjU5LjAwOCAxMDE5LjQ5IDI1OS4wMDhDMTAxNC45NiAyNTkuMDA4IDEwMTAuMDggMjU2LjY1NiAxMDA2LjQ2IDI1MS4wNDZDOTk3LjU5MiAyMzYuOTMyIDk5My43OTIgMjI5LjY5NCA5ODcuODIxIDIyOS42OTRDOTgyLjAzIDIyOS42OTQgOTgwLjU4MiAyMzUuNjY1IDk4MC41ODIgMjM5LjI4NEM5ODAuNTgyIDI2Ni43OSAxMDM2LjY4IDI3MC43NzEgMTAzNi42OCAyOTQuMjk1QzEwMzYuNjggMzEzLjExNCAxMDE0Ljc4IDMyMS42MTkgOTkxLjgwMiAzMjEuNjE5Qzk3Ny4zMjUgMzIxLjYxOSA5NDkuODIgMzE2LjczMyA5NDYuMjAxIDMwMC4wODVaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTA0Ny41NiAzMDguOTUyQzEwNDcuNTYgMzAxLjg5NSAxMDUzLjE3IDI5Ni4yODUgMTA2MC4yMiAyOTYuMjg1QzEwNjcuMjggMjk2LjI4NSAxMDcyLjg5IDMwMS44OTUgMTA3Mi44OSAzMDguOTUyQzEwNzIuODkgMzE2LjAwOSAxMDY3LjI4IDMyMS42MTkgMTA2MC4yMiAzMjEuNjE5QzEwNTMuMTcgMzIxLjYxOSAxMDQ3LjU2IDMxNi4wMDkgMTA0Ny41NiAzMDguOTUyWiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cg==" alt="Floor Fillers Events" style="height:52px;width:auto;display:block"></div>
   <div class="header-right">
     <span class="sync-status" id="syncStatus">Last synced: —</span>
     <button class="sync-btn" onclick="loadAllData()">
@@ -269,9 +361,11 @@
 </header>
 
 <div class="tabs">
-  <div class="tab active" onclick="showTab('pipeline', this)">📋 Pipeline</div>
-  <div class="tab" onclick="showTab('enquiries', this)">✉️ Enquiries</div>
-  <div class="tab" onclick="showTab('tools', this)">⚡ Tools</div>
+  <div class="tab active" data-tab="pipeline" onclick="showTab('pipeline', this)">📋 Pipeline</div>
+  <div class="tab" data-tab="enquiries" onclick="showTab('enquiries', this)">✉️ Enquiries</div>
+  <div class="tab" data-tab="calendar" onclick="showTab('calendar', this)">📅 Calendar</div>
+  <div class="tab" data-tab="dashboard" onclick="showTab('dashboard', this)">📊 Dashboard</div>
+  <div class="tab" data-tab="tools" onclick="showTab('tools', this)">⚡ Tools</div>
 </div>
 
 <!-- PIPELINE -->
@@ -314,6 +408,46 @@
         <tr><td colspan="7" style="color:var(--muted);padding:20px">Loading enquiries…</td></tr>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<!-- CALENDAR -->
+<div class="view" id="view-calendar">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.4rem">Secured Events</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">Terms & Deposit onward — confirmed on the calendar</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="copy-btn" onclick="shiftCalendarMonth(-1)">‹ Prev</button>
+      <div id="calMonthLabel" style="font-family:'Playfair Display',serif;font-size:1.1rem;min-width:150px;text-align:center">—</div>
+      <button class="copy-btn" onclick="shiftCalendarMonth(1)">Next ›</button>
+      <button class="copy-btn" onclick="goToCurrentMonth()">Today</button>
+    </div>
+  </div>
+  <div class="cal-grid" id="calWeekdays"></div>
+  <div class="cal-grid" id="calDays"></div>
+</div>
+
+<div class="view" id="view-dashboard">
+  <div style="margin-bottom:22px">
+    <div style="font-family:'Playfair Display',serif;font-size:1.4rem">Financial Performance</div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-top:2px" id="dashSubtitle">Loading…</div>
+  </div>
+
+  <div id="anniversaryBanner"></div>
+
+  <div class="metric-grid" id="metricGrid"></div>
+
+  <div style="margin-top:32px">
+    <div class="panel-section-title" style="margin-bottom:14px">Revenue by Month</div>
+    <div class="chart-wrap" id="monthChart"></div>
+  </div>
+
+  <div style="margin-top:32px">
+    <div class="panel-section-title" style="margin-bottom:14px">Pipeline Value by Stage</div>
+    <div class="chart-wrap" id="stageChart"></div>
   </div>
 </div>
 
@@ -467,13 +601,9 @@
 
 <script>
 // ── DATA ──
-const ENQUIRY_SHEET_ID = '16cgzGEuUXX78zXMY0XzUmF5eEA52Vqje6xGnEPJgyHk';
-const BOOKING_TRACKER_ID = '1SuxdIG_eZTtSUsBhoKqccIriXmBs1T40';
-const DISCOVERY_SHEET_ID = '1I1XSBWoxK3WfC4pSc43ouXGbfNK7SypKYXoeaII_m9Q';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-Aa-__YxyvCpFYgfKEnCPjxXsX4raokadvdZkI1DQUFOjliJU3Cyhj9kyyXuvbmqP2w/exec';
 
-let enquiries = [];
-let bookings = [];
-let discoveryResponses = [];
+let clients = [];
 let currentClient = null;
 
 const PIPELINE_STAGES = [
@@ -487,183 +617,340 @@ const PIPELINE_STAGES = [
   { id: 'balance',      label: 'Balance Due' },
   { id: 'delivered',    label: 'Delivered' },
   { id: 'review',       label: 'Review / Follow-up' },
+  { id: 'lost',         label: 'Lost' },
 ];
 
 // ── API CALL ──
+// AI_PROXY_URL: set this to your AI Proxy Apps Script deployment URL once you have it.
+const AI_PROXY_URL = 'https://script.google.com/macros/s/AKfycbzqjylp64Zn_s0RjjATM7jNaVk64uMs_v_OBUDcZ8lE5VY1Zal2-scy3UREFiQAJelmAA/exec';
+
 async function callClaude(prompt) {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6", max_tokens: 1000,
-      system: `You are the voice of Floor Fillers Events — a premium wedding and corporate DJ + MC business based in Melbourne (expanding to London and Europe). Owner is Marc: warm, confident, Italian-Australian, mid-20s, knows the wedding industry inside out. Write as if Marc is personally writing. Warm, direct, never stiff or robotic. No filler phrases.`,
-      messages: [{ role: "user", content: prompt }]
-    })
-  });
-  const d = await r.json();
-  return d.content?.map(c => c.text || '').join('') || 'Error — please try again.';
+  if (AI_PROXY_URL.includes('PASTE_YOUR')) {
+    return 'AI generation isn\'t connected yet — deploy the AI Proxy script and paste its URL into AI_PROXY_URL in index.html.';
+  }
+  try {
+    const r = await fetch(AI_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight on Apps Script
+      body: JSON.stringify({ prompt })
+    });
+    const json = await r.json();
+    if (!json.ok) return `Error: ${json.error || 'generation failed'}`;
+    return json.text;
+  } catch (err) {
+    console.error('callClaude failed:', err);
+    return 'Error — please try again.';
+  }
 }
 
-// ── LOAD DATA FROM GOOGLE DRIVE ──
+// ── LOAD DATA FROM APPS SCRIPT ──
 async function loadAllData() {
   document.getElementById('syncIcon').textContent = '↻';
   document.getElementById('syncStatus').textContent = 'Syncing…';
 
-  const results = await Promise.allSettled([
-    loadSheet(ENQUIRY_SHEET_ID),
-    loadSheet(BOOKING_TRACKER_ID),
-    loadSheet(DISCOVERY_SHEET_ID)
-  ]);
-
-  if (results[0].status === 'fulfilled') parseEnquiries(results[0].value);
-  if (results[1].status === 'fulfilled') parseBookings(results[1].value);
-  if (results[2].status === 'fulfilled') parseDiscovery(results[2].value);
+  try {
+    const r = await fetch(APPS_SCRIPT_URL);
+    if (!r.ok) throw new Error(`Backend fetch failed: ${r.status}`);
+    const json = await r.json();
+    if (!json.ok) throw new Error(json.error || 'Unknown backend error');
+    parseClients(json.data);
+  } catch (err) {
+    console.error('Failed to load clients:', err);
+    document.getElementById('syncStatus').textContent = 'Sync failed — see console';
+    return;
+  }
 
   renderPipeline();
   renderEnquiriesTable();
+  renderDashboard();
+  renderCalendar();
 
   document.getElementById('syncIcon').textContent = '✓';
   document.getElementById('syncStatus').textContent = 'Synced ' + new Date().toLocaleTimeString();
   setTimeout(() => document.getElementById('syncIcon').textContent = '⟳', 2000);
 }
 
-async function loadSheet(fileId) {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6", max_tokens: 1000,
-      system: "You are a data extraction assistant. Extract all rows from the Google Sheet provided via the MCP tool and return them as a JSON array. Return ONLY valid JSON, no markdown, no explanation.",
-      messages: [{ role: "user", content: `Read file ${fileId} from Google Drive and return all rows as a JSON array of objects, using the header row as keys.` }],
-      mcp_servers: [{ type: "url", url: "https://drivemcp.googleapis.com/mcp/v1", name: "gdrive" }]
-    })
-  });
-  const d = await r.json();
-  const text = d.content?.map(c => c.text || '').join('') || '[]';
+function parseClients(rows) {
+  clients = rows.filter(r => r['Client ID'] && r['Name']).map(r => ({
+    id: r['Client ID'],
+    name: r['Name'],
+    stage: (r['Stage'] || 'enquiry').trim(),
+    type: r['Event Type'] || '',
+    date: r['Event Date'] || '',
+    venue: r['Venue'] || '',
+    guests: r['Guest Count'] || '',
+    service: r['Service'] || '',
+    dj: r['DJ'] || '',
+    mc: r['MC'] || '',
+    fee: r['Total Fee'] || '',
+    deposit: r['Deposit'] || '',
+    balance: r['Balance'] || '',
+    status: r['Status'] || '',
+    email: r['Email'] || '',
+    phone: r['Phone'] || '',
+    notes: r['Notes'] || '',
+    anniversarySent: r['Anniversary Sent'] || ''
+  }));
+}
+
+// ── UPDATE A CLIENT FIELD (writes back to the sheet) ──
+async function updateClientField(clientId, field, value) {
   try {
-    const clean = text.replace(/```json|```/g, '').trim();
-    const start = clean.indexOf('[');
-    return JSON.parse(start >= 0 ? clean.slice(start) : clean);
-  } catch { return []; }
-}
-
-function parseEnquiries(rows) {
-  enquiries = rows.filter(r => r['First Name & Partners Name\n(If applicable)'] || r['Email Address']).map(r => ({
-    name: r['First Name & Partners Name\n(If applicable)'] || r['First Name & Partners Name (If applicable)'] || '—',
-    email: r['Email Address'] || '',
-    phone: r['Contact Number'] || '',
-    date: r['Event Date (DD/MM/YYYY)'] || '',
-    venue: r['Venue Name'] || '',
-    guests: r['Number of Guests'] || '',
-    time: r['Event Start & End Time'] || '',
-    source: r['How did you hear about us?'] || '',
-    notes: r["Is there anything else you'd like us to know?"] || '',
-    timestamp: r['Timestamp'] || '',
-    stage: 'enquiry'
-  }));
-}
-
-function parseBookings(rows) {
-  bookings = rows.filter(r => r['Client Name(s)'] && r['Event Date']).map(r => {
-    // Map booking tracker columns to pipeline stage
-    let stage = 'enquiry';
-    if (r['Quote / Info Pack Issued'] === 'Yes') stage = 'quote';
-    if (r['Terms of Service & Invoice Issued'] === 'Yes') stage = 'terms';
-    if (r['Deposit Paid'] === 'Yes' || r['Deposit Received']) stage = 'planning';
-    if (r['Discovery Questions Sent'] === 'Sent' || r['Discovery Questions Sent'] === 'Yes') stage = 'planning';
-    if (r['Final Meeting Booked'] === 'Yes') stage = 'finalmeeting';
-    if (r['Balance Paid'] === 'Yes' || r['Balance Paid 1'] === 'Yes') stage = 'balance';
-    if (r['Status'] === 'Confirmed' && (r['Balance Paid'] === 'Yes' || r['Balance Paid 1'] === 'Yes')) stage = 'delivered';
-    if (r['Status'] === 'Lost') stage = null;
-
-    return {
-      name: r['Client Name(s)'],
-      date: r['Event Date'],
-      venue: r['Venue'] || r['Venue Name'] || '',
-      type: r['Event Type'] || '',
-      service: r['Service Booked'] || r['Services Required'] || '',
-      dj: r['DJ Assigned'] || '',
-      mc: r['MC Assinged'] || r['MC Assigned'] || '',
-      fee: r['Total Fee ($)'] || '',
-      deposit: r['Deposit Received'] || '',
-      balance: r['Balance '] || '',
-      status: r['Status'] || '',
-      notes: r['Notes'] || '',
-      stage,
-      source: 'booking'
-    };
-  }).filter(b => b.stage !== null);
-}
-
-function parseDiscovery(rows) {
-  discoveryResponses = rows.filter(r => r['Timestamp']).map(r => ({
-    name: r["Let's start with an easy one - Please provide your names below :) "] || '',
-    musicVibe: r['What kind of music vibe are you envisioning for your dancefloor? (select as many that apply)'] || '',
-    mustPlay: r['Do you have a list of must-play songs you can share?'] || '',
-    dontPlay: r['What about do-not-play songs or artists?'] || '',
-    firstDance: r['What is your first dance song (if applicable)'] || '',
-    atmosphere: r['What kind of atmosphere are you envisioning (e.g. sentimental, fun, energetic, classy)?'] || '',
-    timestamp: r['Timestamp'] || ''
-  }));
+    const r = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight on Apps Script
+      body: JSON.stringify({ clientId, field, value })
+    });
+    const json = await r.json();
+    if (!json.ok) throw new Error(json.error || 'Update failed');
+    return true;
+  } catch (err) {
+    console.error('Failed to update client:', err);
+    alert('Could not save that change — check your connection and try again.');
+    return false;
+  }
 }
 
 // ── RENDER PIPELINE ──
 function renderPipeline() {
-  // Merge enquiries + bookings
-  const allClients = [
-    ...enquiries.map(e => ({ ...e, source: 'enquiry' })),
-    ...bookings
-  ];
-
-  document.getElementById('pipelineCount').textContent = `${allClients.length} active clients`;
+  document.getElementById('pipelineCount').textContent = `${clients.length} active clients`;
 
   const container = document.getElementById('stagesContainer');
   container.innerHTML = '';
 
   PIPELINE_STAGES.forEach(stage => {
-    const clients = allClients.filter(c => c.stage === stage.id);
+    const stageClients = clients.filter(c => c.stage === stage.id);
     const col = document.createElement('div');
     col.className = 'stage-col';
     col.innerHTML = `
       <div class="stage-header">
         <span class="stage-name">${stage.label}</span>
-        <span class="stage-badge">${clients.length}</span>
+        <span class="stage-badge">${stageClients.length}</span>
       </div>
       <div class="stage-cards">
-        ${clients.length === 0 ? '<div class="empty-stage">No clients</div>' : clients.map(c => `
-          <div class="lead-card" onclick="openClient(${JSON.stringify(c).replace(/"/g, '&quot;')})">
+        ${stageClients.length === 0 ? '<div class="empty-stage">No clients</div>' : stageClients.map(c => `
+          <div class="lead-card" data-client-id="${c.id}">
             <div class="card-name">${c.name}</div>
             <div class="card-meta">${c.date || '—'}<br>${c.venue || ''}</div>
             <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || c.service || 'Enquiry'}</span>
+            <select class="card-stage-select" onchange="setClientStage('${c.id}', this.value)" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()">
+              ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${s.id === c.stage ? 'selected' : ''}>${s.label}</option>`).join('')}
+            </select>
           </div>`).join('')}
       </div>`;
     container.appendChild(col);
   });
+  attachCardClickHandlers();
+}
+
+// Distinguishes a genuine tap/click from a scroll-drag, so cards in columns
+// you have to scroll sideways to reach still open reliably.
+function attachCardClickHandlers() {
+  const container = document.getElementById('stagesContainer');
+  let startX = 0, startY = 0, dragged = false;
+
+  container.onpointerdown = (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    dragged = false;
+  };
+  container.onpointermove = (e) => {
+    if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
+      dragged = true;
+    }
+  };
+  container.onpointerup = (e) => {
+    if (dragged) return; // was a scroll, not a tap — don't open anything
+    const card = e.target.closest('.lead-card');
+    if (card) openClientById(card.dataset.clientId);
+  };
+}
+
+function openClientById(id) {
+  const c = clients.find(x => x.id === id);
+  if (c) openClient(c);
 }
 
 // ── RENDER ENQUIRIES TABLE ──
+// Shows clients still sitting at the "New Enquiry" stage.
 function renderEnquiriesTable() {
   const tbody = document.getElementById('enquiriesTable');
-  if (!enquiries.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:20px">No enquiries found.</td></tr>';
+  const newEnquiries = clients.filter(c => c.stage === 'enquiry');
+  if (!newEnquiries.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:20px">No new enquiries.</td></tr>';
     return;
   }
-  tbody.innerHTML = enquiries.map(e => `
-    <tr onclick="openClient(${JSON.stringify(e).replace(/"/g, '&quot;')})">
-      <td><strong>${e.name}</strong>${isNew(e.timestamp) ? '<span class="new-badge">New</span>' : ''}<br><span style="font-size:0.75rem;color:var(--muted)">${e.email}</span></td>
+  tbody.innerHTML = newEnquiries.map(e => `
+    <tr onclick="openClientById('${e.id}')">
+      <td><strong>${e.name}</strong><br><span style="font-size:0.75rem;color:var(--muted)">${e.email}</span></td>
       <td>${e.date}</td>
       <td>${e.venue}</td>
       <td>${e.guests}</td>
-      <td>${e.source}</td>
+      <td>${e.type}</td>
       <td style="max-width:180px;font-size:0.78rem;color:var(--muted)">${(e.notes||'').slice(0,80)}${(e.notes||'').length>80?'…':''}</td>
-      <td><button class="copy-btn" onclick="event.stopPropagation();quickReply(${JSON.stringify(e).replace(/"/g, '&quot;')})">Reply</button></td>
+      <td><button class="copy-btn" onclick="event.stopPropagation();quickReply('${e.id}')">Reply</button></td>
     </tr>`).join('');
 }
 
-function isNew(ts) {
-  if (!ts) return false;
-  const d = new Date(ts);
-  return (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
+// ── DASHBOARD ──
+function parseFee(feeStr) {
+  if (!feeStr) return 0;
+  const cleaned = String(feeStr).replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+function formatMoney(n) {
+  return '$' + n.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+const BOOKED_STAGES = ['terms', 'planning', 'finalmeeting', 'balance', 'delivered', 'review'];
+const PIPELINE_ONLY_STAGES = ['enquiry', 'discovery', 'quote', 'negotiation'];
+
+// ── CALENDAR ──
+let calendarDate = new Date(); // tracks which month is displayed
+
+function shiftCalendarMonth(delta) {
+  calendarDate.setMonth(calendarDate.getMonth() + delta);
+  renderCalendar();
+}
+
+function goToCurrentMonth() {
+  calendarDate = new Date();
+  renderCalendar();
+}
+
+// ── ANNIVERSARY NOTIFICATION ──
+// Surfaces clients whose "Anniversary Sent" column was stamped with the
+// current year by the daily Apps Script automation — i.e. a draft is
+// sitting in Gmail Drafts waiting for review.
+function renderAnniversaryBanner() {
+  const now = new Date();
+  const RECENT_WINDOW_DAYS = 4; // covers weekends/gaps between CRM visits
+
+  const drafted = clients.filter(c => {
+    if (!c.anniversarySent) return false;
+    const sentDate = new Date(c.anniversarySent);
+    if (isNaN(sentDate)) return false;
+    const daysAgo = (now - sentDate) / (1000 * 60 * 60 * 24);
+    return daysAgo >= 0 && daysAgo <= RECENT_WINDOW_DAYS;
+  });
+
+  const banner = document.getElementById('anniversaryBanner');
+  if (!drafted.length) {
+    banner.innerHTML = '';
+    return;
+  }
+
+  const names = drafted.map(c => c.name).join(', ');
+  banner.innerHTML = `
+    <div class="anniversary-banner">
+      <span class="icon">🎉</span>
+      <span class="text">
+        <span class="names">${drafted.length} anniversary email${drafted.length > 1 ? 's' : ''}</span>
+        drafted and waiting in Gmail Drafts: ${names}
+      </span>
+    </div>`;
+}
+
+function renderCalendar() {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+
+  document.getElementById('calMonthLabel').textContent =
+    calendarDate.toLocaleString('en-AU', { month: 'long', year: 'numeric' });
+
+  const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  document.getElementById('calWeekdays').innerHTML =
+    weekdays.map(w => `<div class="cal-weekday">${w}</div>`).join('');
+
+  // Secured events = booked-stage clients with a valid date in this month
+  const secured = clients.filter(c => BOOKED_STAGES.includes(c.stage));
+  const eventsByDay = {};
+  secured.forEach(c => {
+    const d = new Date(c.date);
+    if (isNaN(d) || d.getFullYear() !== year || d.getMonth() !== month) return;
+    const day = d.getDate();
+    (eventsByDay[day] = eventsByDay[day] || []).push(c);
+  });
+
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+  let cells = '';
+  for (let i = 0; i < firstWeekday; i++) cells += '<div class="cal-day empty"></div>';
+  for (let day = 1; day <= daysInMonth; day++) {
+    const isToday = isCurrentMonth && today.getDate() === day;
+    const dayEvents = eventsByDay[day] || [];
+    cells += `<div class="cal-day ${isToday ? 'today' : ''}">
+      <div class="cal-day-num">${day}</div>
+      ${dayEvents.map(c => `
+        <div class="cal-event">
+          <span class="cal-event-name" onclick="openClientById('${c.id}')">${c.name}</span>
+          <select class="cal-event-select" onchange="setClientStage('${c.id}', this.value)" onclick="event.stopPropagation()">
+            ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${s.id === c.stage ? 'selected' : ''}>${s.label}</option>`).join('')}
+          </select>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  document.getElementById('calDays').innerHTML = cells;
+}
+
+function renderDashboard() {
+  document.getElementById('dashSubtitle').textContent = `${clients.length} active clients · updated ${new Date().toLocaleTimeString()}`;
+
+  renderAnniversaryBanner();
+
+  const booked = clients.filter(c => BOOKED_STAGES.includes(c.stage));
+  const pipelineOnly = clients.filter(c => PIPELINE_ONLY_STAGES.includes(c.stage));
+
+  const bookedRevenue = booked.reduce((sum, c) => sum + parseFee(c.fee), 0);
+  const pipelineValue = pipelineOnly.reduce((sum, c) => sum + parseFee(c.fee), 0);
+  const avgBookingValue = booked.length ? bookedRevenue / booked.length : 0;
+
+  document.getElementById('metricGrid').innerHTML = `
+    <div class="metric-card"><div class="metric-label">Booked Revenue</div><div class="metric-value gold">${formatMoney(bookedRevenue)}</div></div>
+    <div class="metric-card"><div class="metric-label">Pipeline Value</div><div class="metric-value">${formatMoney(pipelineValue)}</div></div>
+    <div class="metric-card"><div class="metric-label">Booked Events</div><div class="metric-value">${booked.length}</div></div>
+    <div class="metric-card"><div class="metric-label">Avg Booking Value</div><div class="metric-value">${formatMoney(Math.round(avgBookingValue))}</div></div>
+  `;
+
+  // Revenue by month (booked clients only, grouped by event date's month/year)
+  const byMonth = {};
+  booked.forEach(c => {
+    const d = new Date(c.date);
+    if (isNaN(d)) return;
+    const key = d.toLocaleString('en-AU', { month: 'short', year: 'numeric' });
+    byMonth[key] = (byMonth[key] || 0) + parseFee(c.fee);
+  });
+  const monthEntries = Object.entries(byMonth).sort((a, b) => new Date('1 ' + a[0]) - new Date('1 ' + b[0]));
+  const maxMonth = Math.max(1, ...monthEntries.map(([, v]) => v));
+  document.getElementById('monthChart').innerHTML = monthEntries.length
+    ? monthEntries.map(([label, val]) => `
+      <div class="chart-row">
+        <div class="chart-row-label">${label}</div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(val / maxMonth * 100).toFixed(1)}%"></div></div>
+        <div class="chart-row-value">${formatMoney(val)}</div>
+      </div>`).join('')
+    : '<div class="empty-stage">No booked revenue with valid dates yet</div>';
+
+  // Pipeline value by stage (all non-lost stages with fee data)
+  const byStage = PIPELINE_STAGES.map(s => ({
+    label: s.label,
+    value: clients.filter(c => c.stage === s.id).reduce((sum, c) => sum + parseFee(c.fee), 0)
+  })).filter(s => s.value > 0);
+  const maxStage = Math.max(1, ...byStage.map(s => s.value));
+  document.getElementById('stageChart').innerHTML = byStage.length
+    ? byStage.map(s => `
+      <div class="chart-row">
+        <div class="chart-row-label">${s.label}</div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(s.value / maxStage * 100).toFixed(1)}%"></div></div>
+        <div class="chart-row-value">${formatMoney(s.value)}</div>
+      </div>`).join('')
+    : '<div class="empty-stage">No fee data yet</div>';
 }
 
 // ── CLIENT PANEL ──
@@ -672,19 +959,33 @@ function openClient(c) {
   document.getElementById('dp-name').textContent = c.name;
   document.getElementById('dp-event').textContent = [c.type || c.service || '', c.date, c.venue].filter(Boolean).join(' · ');
 
-  // Stage pills
-  const stageIdx = PIPELINE_STAGES.findIndex(s => s.id === c.stage);
-  document.getElementById('dp-stages').innerHTML = PIPELINE_STAGES.map((s, i) => {
+  // Stage pills — click any pill to move the client to that stage (writes back to the sheet)
+  // "Lost" is excluded from the sequential progress bar (it's a dead-end, not a step),
+  // but still shown as its own pill so you can mark/unmark a client as lost.
+  const sequentialStages = PIPELINE_STAGES.filter(s => s.id !== 'lost');
+  const stageIdx = sequentialStages.findIndex(s => s.id === c.stage);
+  const progressPills = sequentialStages.map((s, i) => {
     const cls = i < stageIdx ? 'done' : i === stageIdx ? 'current' : 'pending';
-    return `<span class="stage-pill ${cls}">${i < stageIdx ? '✓ ' : ''}${s.label}</span>`;
+    return `<span class="stage-pill ${cls}" style="cursor:pointer" onclick="setClientStage('${c.id}','${s.id}')">${i < stageIdx ? '✓ ' : ''}${s.label}</span>`;
   }).join('');
+  const lostPill = `<span class="stage-pill ${c.stage === 'lost' ? 'current' : 'pending'}" style="cursor:pointer;border-color:var(--red)" onclick="setClientStage('${c.id}','lost')">${c.stage === 'lost' ? '✕ Lost' : 'Mark Lost'}</span>`;
+  document.getElementById('dp-stages').innerHTML = progressPills + lostPill;
 
-  // Info
-  document.getElementById('dp-info').innerHTML = [
+  // Info (Fee is editable — everything else stays read-only for now)
+  const infoRows = [
     ['Date', c.date], ['Venue', c.venue], ['Service', c.service || c.type],
     ['Guests', c.guests], ['Email', c.email], ['Phone', c.phone || c.mobile],
-    ['Fee', c.fee], ['Status', c.status]
+    ['Status', c.status]
   ].filter(([,v]) => v).map(([k,v]) => `<div class="info-item"><label>${k}</label><span>${v}</span></div>`).join('');
+
+  const feeRow = `<div class="info-item"><label>Fee</label>
+    <div class="editable-field">
+      <input type="text" id="fee-input" value="${(c.fee||'').replace(/"/g,'&quot;')}" placeholder="e.g. $2,500.00">
+      <button class="save-btn" onclick="saveFee('${c.id}')">Save</button>
+    </div>
+  </div>`;
+
+  document.getElementById('dp-info').innerHTML = feeRow + infoRows;
 
   // Action buttons based on stage
   const actions = getActionsForStage(c);
@@ -711,6 +1012,55 @@ function getActionsForStage(c) {
   ];
   // Always show all — smart people know which is relevant
   return all;
+}
+
+async function saveFee(clientId) {
+  const c = clients.find(x => x.id === clientId);
+  if (!c) return;
+  const input = document.getElementById('fee-input');
+  const newFee = input.value.trim();
+  const previousFee = c.fee;
+  c.fee = newFee; // optimistic update
+
+  const success = await updateClientField(clientId, 'Total Fee', newFee);
+  if (!success) {
+    c.fee = previousFee;
+    input.value = previousFee;
+  } else {
+    const t = document.getElementById('toast');
+    t.textContent = 'Fee updated ✓';
+    t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); t.textContent = 'Copied ✓'; }, 2000);
+    renderDashboard(); // fee changes affect dashboard totals
+  }
+}
+
+async function setClientStage(clientId, newStage) {
+  const c = clients.find(x => x.id === clientId);
+  if (!c || c.stage === newStage) return;
+
+  const previousStage = c.stage;
+  c.stage = newStage; // optimistic update
+  openClient(c);
+  renderPipeline();
+  renderEnquiriesTable();
+  renderCalendar();
+  renderDashboard();
+
+  const success = await updateClientField(clientId, 'Stage', newStage);
+  if (!success) {
+    c.stage = previousStage; // roll back on failure
+    openClient(c);
+    renderPipeline();
+    renderEnquiriesTable();
+    renderCalendar();
+    renderDashboard();
+  } else {
+    const t = document.getElementById('toast');
+    t.textContent = 'Stage updated ✓';
+    t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); t.textContent = 'Copied ✓'; }, 2000);
+  }
 }
 
 function closePanel() {
@@ -748,15 +1098,17 @@ async function triggerAction(actionId) {
   document.getElementById('dp-out-text').textContent = text;
 }
 
-async function quickReply(e) {
+async function quickReply(clientId) {
+  const e = clients.find(x => x.id === clientId);
+  if (!e) return;
   currentClient = e;
-  showTab('tools', document.querySelector('.tab:nth-child(3)'));
+  showTab('tools', document.querySelector('[data-tab="tools"]'));
   showTool('enquiry-reply', document.querySelector('.tool-nav-item'));
   document.getElementById('er-name').value = e.name || '';
   document.getElementById('er-date').value = e.date || '';
   document.getElementById('er-venue').value = e.venue || '';
   document.getElementById('er-guests').value = e.guests || '';
-  document.getElementById('er-source').value = e.source || '';
+  document.getElementById('er-source').value = e.type || '';
   document.getElementById('er-msg').value = e.notes || '';
 }
 
