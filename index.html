@@ -289,6 +289,12 @@
   .cal-day-num { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
   .cal-day.today .cal-day-num { color: var(--gold); }
   .cal-event { background: var(--gold-dim); border: 1px solid var(--gold-border); border-radius: 4px; padding: 3px 6px; font-size: 0.68rem; color: var(--offwhite); display: flex; flex-direction: column; gap: 2px; }
+  .cal-event-event { background: rgba(91,143,212,0.16); border-color: rgba(91,143,212,0.4); } /* Blue — the wedding day itself */
+  .cal-event-reminder { background: rgba(232,160,32,0.16); border-color: rgba(232,160,32,0.4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* Yellow — meeting checkpoint reminders */
+  .cal-event-meeting { background: rgba(76,175,125,0.16); border-color: rgba(76,175,125,0.4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* Green — manually-booked meetings */
+  .cal-legend { display: flex; gap: 18px; margin-bottom: 16px; font-size: 0.75rem; color: var(--muted); flex-wrap: wrap; }
+  .cal-legend-item { display: flex; align-items: center; gap: 6px; }
+  .cal-legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
   .cal-event-name { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
   .cal-event-name:hover { color: var(--gold); }
   .cal-event-select { background: var(--mid); border: 1px solid var(--gold-border); border-radius: 3px; color: var(--offwhite); font-size: 0.6rem; padding: 1px 2px; width: 100%; }
@@ -425,6 +431,11 @@
       <button class="copy-btn" onclick="shiftCalendarMonth(1)">Next ›</button>
       <button class="copy-btn" onclick="goToCurrentMonth()">Today</button>
     </div>
+  </div>
+  <div class="cal-legend">
+    <span class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(91,143,212,0.7)"></span>Wedding Day</span>
+    <span class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(232,160,32,0.7)"></span>Reminder to Schedule</span>
+    <span class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(76,175,125,0.7)"></span>Meeting Scheduled</span>
   </div>
   <div class="cal-grid" id="calWeekdays"></div>
   <div class="cal-grid" id="calDays"></div>
@@ -663,6 +674,7 @@ async function loadAllData() {
   renderPipeline();
   renderEnquiriesTable();
   renderDashboard();
+  await loadGoogleCalendarEvents();
   renderCalendar();
 
   document.getElementById('syncIcon').textContent = '✓';
@@ -809,6 +821,17 @@ const PIPELINE_ONLY_STAGES = ['enquiry', 'discovery', 'quote', 'negotiation'];
 
 // ── CALENDAR ──
 let calendarDate = new Date(); // tracks which month is displayed
+let googleCalendarEvents = []; // reminders + manually-booked meetings pulled from Google Calendar
+
+async function loadGoogleCalendarEvents() {
+  try {
+    const r = await fetch(AI_PROXY_URL); // same Apps Script project now also serves GET for calendar events
+    const json = await r.json();
+    if (json.ok) googleCalendarEvents = json.data;
+  } catch (err) {
+    console.error('Failed to load Google Calendar events:', err);
+  }
+}
 
 function shiftCalendarMonth(delta) {
   calendarDate.setMonth(calendarDate.getMonth() + delta);
@@ -864,7 +887,7 @@ function renderCalendar() {
   document.getElementById('calWeekdays').innerHTML =
     weekdays.map(w => `<div class="cal-weekday">${w}</div>`).join('');
 
-  // Secured events = booked-stage clients with a valid date in this month
+  // Secured events = booked-stage clients with a valid date in this month (from the sheet)
   const secured = clients.filter(c => BOOKED_STAGES.includes(c.stage));
   const eventsByDay = {};
   secured.forEach(c => {
@@ -872,6 +895,17 @@ function renderCalendar() {
     if (isNaN(d) || d.getFullYear() !== year || d.getMonth() !== month) return;
     const day = d.getDate();
     (eventsByDay[day] = eventsByDay[day] || []).push(c);
+  });
+
+  // Reminders + manually-booked meetings pulled from Google Calendar
+  // ('event' type skipped here — the wedding day itself already shows via the sheet-driven block above)
+  const gcalByDay = {};
+  googleCalendarEvents.forEach(ev => {
+    if (ev.type === 'event') return;
+    const d = new Date(ev.date);
+    if (isNaN(d) || d.getFullYear() !== year || d.getMonth() !== month) return;
+    const day = d.getDate();
+    (gcalByDay[day] = gcalByDay[day] || []).push(ev);
   });
 
   const firstWeekday = new Date(year, month, 1).getDay();
@@ -884,15 +918,18 @@ function renderCalendar() {
   for (let day = 1; day <= daysInMonth; day++) {
     const isToday = isCurrentMonth && today.getDate() === day;
     const dayEvents = eventsByDay[day] || [];
+    const dayGcalEvents = gcalByDay[day] || [];
     cells += `<div class="cal-day ${isToday ? 'today' : ''}">
       <div class="cal-day-num">${day}</div>
       ${dayEvents.map(c => `
-        <div class="cal-event">
+        <div class="cal-event cal-event-event">
           <span class="cal-event-name" onclick="openClientById('${c.id}')">${c.name}</span>
           <select class="cal-event-select" onchange="setClientStage('${c.id}', this.value)" onclick="event.stopPropagation()">
             ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${s.id === c.stage ? 'selected' : ''}>${s.label}</option>`).join('')}
           </select>
         </div>`).join('')}
+      ${dayGcalEvents.map(ev => `
+        <div class="cal-event cal-event-${ev.type}" title="${ev.title.replace(/"/g,'&quot;')}">${ev.title}</div>`).join('')}
     </div>`;
   }
 
