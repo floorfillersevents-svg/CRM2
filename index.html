@@ -612,6 +612,20 @@
 <div class="toast" id="toast">Copied ✓</div>
 
 <script>
+// ── ERROR CATCHER ──
+// Shows any uncaught JS error as a visible on-screen banner, so problems
+// can be screenshotted and diagnosed without needing browser dev tools.
+window.onerror = function(message, source, lineno, colno, error) {
+  const existing = document.getElementById('jsErrorBanner');
+  if (existing) return; // only show the first error, avoid stacking banners
+  const banner = document.createElement('div');
+  banner.id = 'jsErrorBanner';
+  banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#3a1414;color:#ffb4b4;padding:12px 16px;font-family:monospace;font-size:12px;z-index:9999;border-top:2px solid #ff4444;max-height:40vh;overflow-y:auto;white-space:pre-wrap;';
+  banner.textContent = `JS ERROR: ${message}\nLine ${lineno}, Col ${colno}\n${error && error.stack ? error.stack : ''}`;
+  document.body.appendChild(banner);
+  return false;
+};
+
 // ── DATA ──
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-Aa-__YxyvCpFYgfKEnCPjxXsX4raokadvdZkI1DQUFOjliJU3Cyhj9kyyXuvbmqP2w/exec';
 
