@@ -698,25 +698,28 @@ async function loadAllData() {
 }
 
 function parseClients(rows) {
+  const s = v => (v === undefined || v === null) ? '' : String(v); // coerce every field to a string —
+  // Google Sheets returns numeric-looking cells (like a plain fee amount) as actual
+  // JS numbers, not strings, which silently breaks anything expecting .replace()/.slice() etc.
   clients = rows.filter(r => r['Client ID'] && r['Name']).map(r => ({
-    id: r['Client ID'],
-    name: r['Name'],
-    stage: (r['Stage'] || 'enquiry').trim(),
-    type: r['Event Type'] || '',
-    date: r['Event Date'] || '',
-    venue: r['Venue'] || '',
-    guests: r['Guest Count'] || '',
-    service: r['Service'] || '',
-    dj: r['DJ'] || '',
-    mc: r['MC'] || '',
-    fee: r['Total Fee'] || '',
-    deposit: r['Deposit'] || '',
-    balance: r['Balance'] || '',
-    status: r['Status'] || '',
-    email: r['Email'] || '',
-    phone: r['Phone'] || '',
-    notes: r['Notes'] || '',
-    anniversarySent: r['Anniversary Sent'] || ''
+    id: s(r['Client ID']),
+    name: s(r['Name']),
+    stage: s(r['Stage'] || 'enquiry').trim(),
+    type: s(r['Event Type']),
+    date: s(r['Event Date']),
+    venue: s(r['Venue']),
+    guests: s(r['Guest Count']),
+    service: s(r['Service']),
+    dj: s(r['DJ']),
+    mc: s(r['MC']),
+    fee: s(r['Total Fee']),
+    deposit: s(r['Deposit']),
+    balance: s(r['Balance']),
+    status: s(r['Status']),
+    email: s(r['Email']),
+    phone: s(r['Phone']),
+    notes: s(r['Notes']),
+    anniversarySent: s(r['Anniversary Sent'])
   }));
 }
 
@@ -1010,7 +1013,7 @@ function openClient(c) {
 
   const feeRow = `<div class="info-item"><label>Fee</label>
     <div class="editable-field">
-      <input type="text" id="fee-input" value="${(c.fee||'').replace(/"/g,'&quot;')}" placeholder="e.g. $2,500.00">
+      <input type="text" id="fee-input" value="${String(c.fee||'').replace(/"/g,'&quot;')}" placeholder="e.g. $2,500.00">
       <button class="save-btn" onclick="saveFee('${c.id}')">Save</button>
     </div>
   </div>`;
