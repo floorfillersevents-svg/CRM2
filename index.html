@@ -280,6 +280,7 @@
   .editable-field input { padding: 5px 8px; font-size: 0.85rem; width: 110px; }
   .editable-field .save-btn { background: var(--gold); color: var(--black); border: none; border-radius: 4px; font-size: 0.68rem; font-weight: 700; padding: 5px 10px; cursor: pointer; }
   .editable-field .save-btn:hover { background: #d9b85c; }
+  .team-select { background: var(--mid); border: 1px solid var(--gold-border); border-radius: 5px; color: var(--offwhite); font-size: 0.85rem; padding: 5px 8px; width: 140px; cursor: pointer; }
 
   /* CALENDAR */
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px; }
@@ -1004,7 +1005,7 @@ function openClient(c) {
   const lostPill = `<span class="stage-pill ${c.stage === 'lost' ? 'current' : 'pending'}" style="cursor:pointer;border-color:var(--red)" onclick="setClientStage('${c.id}','lost')">${c.stage === 'lost' ? '✕ Lost' : 'Mark Lost'}</span>`;
   document.getElementById('dp-stages').innerHTML = progressPills + lostPill;
 
-  // Info (Fee is editable — everything else stays read-only for now)
+  // Info (Fee, DJ, MC are editable — everything else stays read-only for now)
   const infoRows = [
     ['Date', c.date], ['Venue', c.venue], ['Service', c.service || c.type],
     ['Guests', c.guests], ['Email', c.email], ['Phone', c.phone || c.mobile],
@@ -1018,7 +1019,17 @@ function openClient(c) {
     </div>
   </div>`;
 
-  document.getElementById('dp-info').innerHTML = feeRow + infoRows;
+  const teamOptions = ['', 'Jesse', 'Marc', 'Daniel', 'David', 'Frank', 'Other', 'N/A'];
+  const teamRow = (label, field, current) => `<div class="info-item"><label>${label}</label>
+    <select class="team-select" onchange="setTeamMember('${c.id}','${field}',this.value)">
+      ${teamOptions.map(opt => `<option value="${opt}" ${opt === current ? 'selected' : ''}>${opt || '— Select —'}</option>`).join('')}
+    </select>
+  </div>`;
+
+  document.getElementById('dp-info').innerHTML = feeRow
+    + teamRow('DJ', 'DJ', c.dj)
+    + teamRow('MC', 'MC', c.mc)
+    + infoRows;
 
   // Action buttons based on stage
   const actions = getActionsForStage(c);
@@ -1065,6 +1076,25 @@ async function saveFee(clientId) {
     t.classList.add('show');
     setTimeout(() => { t.classList.remove('show'); t.textContent = 'Copied ✓'; }, 2000);
     renderDashboard(); // fee changes affect dashboard totals
+  }
+}
+
+async function setTeamMember(clientId, field, value) {
+  const c = clients.find(x => x.id === clientId);
+  if (!c) return;
+  const key = field === 'DJ' ? 'dj' : 'mc';
+  const previous = c[key];
+  c[key] = value; // optimistic update
+
+  const success = await updateClientField(clientId, field, value);
+  if (!success) {
+    c[key] = previous;
+    openClient(c); // re-render to roll back the dropdown visually
+  } else {
+    const t = document.getElementById('toast');
+    t.textContent = `${field} updated ✓`;
+    t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); t.textContent = 'Copied ✓'; }, 2000);
   }
 }
 
