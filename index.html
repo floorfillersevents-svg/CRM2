@@ -72,7 +72,7 @@
   .lead-count { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
 
   /* Pipeline stages */
-  .stages-scroll { overflow-x: auto; padding-bottom: 12px; }
+  .stages-scroll { overflow-x: auto; padding-bottom: 12px; touch-action: pan-x; }
   .stages { display: flex; gap: 14px; min-width: max-content; }
   .stage-col { width: 240px; flex-shrink: 0; }
   .stage-header {
@@ -93,11 +93,12 @@
   }
   .lead-card {
     background: var(--card); border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 7px; padding: 12px 14px; cursor: pointer;
+    border-radius: 7px; padding: 12px 14px;
     transition: all 0.18s; position: relative;
   }
   .lead-card:hover { border-color: var(--gold-border); background: #232323; }
   .lead-card.selected { border-color: var(--gold); }
+  .card-tap-area { cursor: pointer; }
   .card-name { font-size: 0.88rem; font-weight: 500; margin-bottom: 4px; }
   .card-meta { font-size: 0.72rem; color: var(--muted); line-height: 1.5; }
   .card-type {
@@ -742,40 +743,18 @@ function renderPipeline() {
       <div class="stage-cards">
         ${stageClients.length === 0 ? '<div class="empty-stage">No clients</div>' : stageClients.map(c => `
           <div class="lead-card" data-client-id="${c.id}">
-            <div class="card-name">${c.name}</div>
-            <div class="card-meta">${c.date || '—'}<br>${c.venue || ''}</div>
-            <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || c.service || 'Enquiry'}</span>
-            <select class="card-stage-select" onchange="setClientStage('${c.id}', this.value)" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()">
+            <div class="card-tap-area" onclick="openClientById('${c.id}')">
+              <div class="card-name">${c.name}</div>
+              <div class="card-meta">${c.date || '—'}<br>${c.venue || ''}</div>
+              <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || c.service || 'Enquiry'}</span>
+            </div>
+            <select class="card-stage-select" onchange="setClientStage('${c.id}', this.value)" onclick="event.stopPropagation()">
               ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${s.id === c.stage ? 'selected' : ''}>${s.label}</option>`).join('')}
             </select>
           </div>`).join('')}
       </div>`;
     container.appendChild(col);
   });
-  attachCardClickHandlers();
-}
-
-// Distinguishes a genuine tap/click from a scroll-drag, so cards in columns
-// you have to scroll sideways to reach still open reliably.
-function attachCardClickHandlers() {
-  const container = document.getElementById('stagesContainer');
-  let startX = 0, startY = 0, dragged = false;
-
-  container.onpointerdown = (e) => {
-    startX = e.clientX;
-    startY = e.clientY;
-    dragged = false;
-  };
-  container.onpointermove = (e) => {
-    if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
-      dragged = true;
-    }
-  };
-  container.onpointerup = (e) => {
-    if (dragged) return; // was a scroll, not a tap — don't open anything
-    const card = e.target.closest('.lead-card');
-    if (card) openClientById(card.dataset.clientId);
-  };
 }
 
 function openClientById(id) {
