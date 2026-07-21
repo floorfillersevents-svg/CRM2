@@ -101,9 +101,14 @@
   .card-tap-area { cursor: pointer; }
   .card-name { font-size: 0.88rem; font-weight: 500; margin-bottom: 4px; }
   .card-meta { font-size: 0.72rem; color: var(--muted); line-height: 1.5; }
+  .card-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .card-type {
     display: inline-block; font-size: 0.63rem; font-weight: 600; letter-spacing: 0.07em;
-    text-transform: uppercase; padding: 2px 7px; border-radius: 3px; margin-top: 6px;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 3px;
+  }
+  .card-service {
+    display: inline-block; font-size: 0.63rem; font-weight: 600; letter-spacing: 0.03em;
+    padding: 2px 7px; border-radius: 3px; background: rgba(255,255,255,0.06); color: var(--muted);
   }
   .type-wedding { background: rgba(91,143,212,0.18); color: var(--blue); }
   .type-corporate { background: rgba(76,175,125,0.18); color: var(--green); }
@@ -459,6 +464,16 @@
   </div>
 
   <div style="margin-top:32px">
+    <div class="panel-section-title" style="margin-bottom:14px">Revenue by Calendar Year</div>
+    <div class="chart-wrap" id="yearChart"></div>
+  </div>
+
+  <div style="margin-top:32px">
+    <div class="panel-section-title" style="margin-bottom:14px">Events Delivered by Team Member</div>
+    <div class="chart-wrap" id="teamChart"></div>
+  </div>
+
+  <div style="margin-top:32px">
     <div class="panel-section-title" style="margin-bottom:14px">Pipeline Value by Stage</div>
     <div class="chart-wrap" id="stageChart"></div>
   </div>
@@ -764,7 +779,10 @@ function renderPipeline() {
             <div class="card-tap-area" onclick="openClientById('${c.id}')">
               <div class="card-name">${c.name}</div>
               <div class="card-meta">${c.date || '—'}<br>${c.venue || ''}</div>
-              <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || c.service || 'Enquiry'}</span>
+              <div class="card-badges">
+                <span class="card-type type-${(c.type||'').toLowerCase().includes('wedding') ? 'wedding' : (c.type||'').toLowerCase().includes('corp') ? 'corporate' : 'milestone'}">${c.type || 'Enquiry'}</span>
+                ${c.service ? `<span class="card-service">${c.service}</span>` : ''}
+              </div>
             </div>
             <select class="card-stage-select" onchange="setClientStage('${c.id}', this.value)" onclick="event.stopPropagation()">
               ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${s.id === c.stage ? 'selected' : ''}>${s.label}</option>`).join('')}
@@ -970,6 +988,48 @@ function renderDashboard() {
         <div class="chart-row-value">${formatMoney(val)}</div>
       </div>`).join('')
     : '<div class="empty-stage">No booked revenue with valid dates yet</div>';
+
+  // Revenue by calendar year (secured/delivered events only — same BOOKED_STAGES set used elsewhere)
+  const byYear = {};
+  booked.forEach(c => {
+    const d = new Date(c.date);
+    if (isNaN(d)) return;
+    const year = d.getFullYear();
+    byYear[year] = (byYear[year] || 0) + parseFee(c.fee);
+  });
+  const yearEntries = Object.entries(byYear).sort((a, b) => a[0] - b[0]);
+  const maxYear = Math.max(1, ...yearEntries.map(([, v]) => v));
+  document.getElementById('yearChart').innerHTML = yearEntries.length
+    ? yearEntries.map(([label, val]) => `
+      <div class="chart-row">
+        <div class="chart-row-label">${label}</div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(val / maxYear * 100).toFixed(1)}%"></div></div>
+        <div class="chart-row-value">${formatMoney(val)}</div>
+      </div>`).join('')
+    : '<div class="empty-stage">No booked revenue with valid dates yet</div>';
+
+  // Events delivered by team member — counts a client toward anyone whose name
+  // appears in the DJ or MC field (case-insensitive substring match, so it still
+  // works for older combined entries like "Marc & Jesse", not just the new dropdown)
+  const TEAM_MEMBERS = ['Marc', 'Jesse', 'David', 'Daniel', 'Frank'];
+  const teamCounts = TEAM_MEMBERS.map(name => ({
+    label: name,
+    value: booked.filter(c => {
+      const dj = (c.dj || '').toLowerCase();
+      const mc = (c.mc || '').toLowerCase();
+      const n = name.toLowerCase();
+      return dj.includes(n) || mc.includes(n);
+    }).length
+  })).filter(t => t.value > 0).sort((a, b) => b.value - a.value);
+  const maxTeam = Math.max(1, ...teamCounts.map(t => t.value));
+  document.getElementById('teamChart').innerHTML = teamCounts.length
+    ? teamCounts.map(t => `
+      <div class="chart-row">
+        <div class="chart-row-label">${t.label}</div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(t.value / maxTeam * 100).toFixed(1)}%"></div></div>
+        <div class="chart-row-value">${t.value} event${t.value !== 1 ? 's' : ''}</div>
+      </div>`).join('')
+    : '<div class="empty-stage">No DJ/MC assignments recorded yet</div>';
 
   // Pipeline value by stage (all non-lost stages with fee data)
   const byStage = PIPELINE_STAGES.map(s => ({
